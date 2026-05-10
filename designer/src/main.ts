@@ -205,6 +205,10 @@ const pdfDownload = document.getElementById('pdf-download') as HTMLAnchorElement
 document.getElementById('proof-close')!.addEventListener('click', () => modal.classList.remove('show'));
 document.getElementById('proof-back')!.addEventListener('click', () => modal.classList.remove('show'));
 
+// Hold the most-recently-rendered proof PDF bytes so the modal's "Confirm"
+// button can upload them without re-rendering.
+let lastProofBytes: Uint8Array | null = null;
+
 document.getElementById('approve')!.addEventListener('click', async () => {
   const approveBtn = document.getElementById('approve') as HTMLButtonElement;
   approveBtn.disabled = true;
@@ -221,11 +225,11 @@ document.getElementById('approve')!.addEventListener('click', async () => {
 
     // 2. Render the canvas at print resolution, then build a PDF.
     const editorPng = canvas.toDataURL({ format: 'png', multiplier: 2 });
-    const pdfBytes = await renderProofPdf(editorPng);
+    lastProofBytes = await renderProofPdf(editorPng);
 
     // 3. Show the proof modal.
     editorPreview.src = editorPng;
-    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+    const blob = new Blob([lastProofBytes], { type: 'application/pdf' });
     const blobUrl = URL.createObjectURL(blob);
     pdfPreview.src = blobUrl;
     pdfDownload.href = blobUrl;
@@ -243,7 +247,16 @@ document.getElementById('approve')!.addEventListener('click', async () => {
 
 document.getElementById('proof-confirm')!.addEventListener('click', async () => {
   if (!currentDesignId) return;
+  const btn = document.getElementById('proof-confirm') as HTMLButtonElement;
+  btn.disabled = true;
+  btn.textContent = '⏳ Uploading proof…';
   try {
+    // Upload the client-rendered PDF so the server has the canonical print
+    // artefact (not the placeholder the queued worker would otherwise create).
+    if (lastProofBytes) {
+      const meta = await client.uploadPrintPdf(currentDesignId, lastProofBytes);
+      console.log('Proof uploaded:', meta);
+    }
     await client.approve(currentDesignId);
     toast('Approved! Returning to product…', 'success');
     setTimeout(() => {
@@ -256,6 +269,8 @@ document.getElementById('proof-confirm')!.addEventListener('click', async () => 
     }, 1500);
   } catch (e: any) {
     toast(`Approve failed: ${e?.message ?? e}`, 'error');
+    btn.disabled = false;
+    btn.textContent = '✓ Confirm & add to cart';
   }
 });
 

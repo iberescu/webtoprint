@@ -16,6 +16,7 @@ Route::prefix('designer')->group(function () {
     Route::put('/designs/{design}', [DesignerDesignController::class, 'update']);
     Route::post('/designs/{design}/preview', [DesignerDesignController::class, 'preview']);
     Route::post('/designs/{design}/generate-print-pdf', [DesignerDesignController::class, 'generatePrintPdf']);
+    Route::post('/designs/{design}/upload-print-pdf', [DesignerDesignController::class, 'uploadPrintPdf']);
     Route::post('/designs/{design}/approve', [DesignerDesignController::class, 'approve']);
 
     // PDF upload alternative

@@ -55,4 +55,23 @@ export class DesignerClient {
     if (!res.ok) throw new Error(`Approve failed: ${res.status}`);
     return res.json();
   }
+
+  /**
+   * Upload the client-rendered (PDF-LIB) proof PDF and link it to the design
+   * as `print_pdf_file_id`. Returns the file's sha256 so callers can verify.
+   */
+  async uploadPrintPdf(id: string, pdf: Uint8Array | Blob) {
+    const blob = pdf instanceof Blob ? pdf : new Blob([pdf], { type: 'application/pdf' });
+    const form = new FormData();
+    form.append('pdf', blob, `design-${id}.pdf`);
+
+    const headers: Record<string, string> = { 'Accept': 'application/json' };
+    if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
+
+    const res = await fetch(`${this.base}/designer/designs/${id}/upload-print-pdf`, {
+      method: 'POST', headers, body: form,
+    });
+    if (!res.ok) throw new Error(`Upload PDF failed: ${res.status}`);
+    return res.json() as Promise<{ design_id: string; print_pdf_file_id: string; size: number; sha256: string }>;
+  }
 }

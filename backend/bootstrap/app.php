@@ -15,6 +15,11 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->statefulApi();
+        // The /api/v1 routes are pure JSON APIs (Sanctum tokens, no session
+        // CSRF needed). Without this, statefulApi() pulls in session +
+        // VerifyCsrfToken and unauthenticated POSTs from the storefront /
+        // designer return 419 "CSRF token mismatch".
+        $middleware->validateCsrfTokens(except: ['api/*']);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         ApiRenderer::register($exceptions);
