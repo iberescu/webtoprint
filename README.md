@@ -6,6 +6,7 @@ This repository is the reusable core platform; per-customer overrides live in `c
 
 See [`STEPS.md`](STEPS.md) for the implementation step plan and current progress.
 See [`docs/spec.md`](docs/spec.md) for the full MVP technical specification.
+See [`CHANGELOG.md`](CHANGELOG.md) for a running history of what got built, why, and the trade-offs along the way (most-recent first).
 
 ## Layout
 
