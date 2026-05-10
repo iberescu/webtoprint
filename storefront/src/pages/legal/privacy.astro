@@ -1,0 +1,57 @@
+---
+import BaseLayout from '~/layouts/BaseLayout.astro';
+---
+<BaseLayout title="Privacy policy — PrintHub">
+  <div class="mx-auto max-w-3xl px-4 py-10">
+    <h1 class="text-3xl font-bold tracking-tight">Privacy policy</h1>
+    <p class="mt-2 text-sm text-slate-500">Last updated: 1 January 2026 · GDPR-compliant</p>
+
+    <div class="prose prose-slate mt-6 max-w-none text-slate-700">
+      <h2 class="mt-6 text-xl font-semibold">1. Who we are</h2>
+      <p>
+        Demo Print GmbH (<a href="/legal/imprint" class="text-indigo-600 underline">imprint</a>)
+        is the data controller for personal data processed through this storefront.
+        For data-protection enquiries, contact our DPO at
+        <a href="mailto:dpo@demoprint.example" class="text-indigo-600 underline">dpo@demoprint.example</a>.
+      </p>
+
+      <h2 class="mt-6 text-xl font-semibold">2. What we collect and why</h2>
+      <ul class="list-disc pl-6">
+        <li><strong>Order data</strong> — name, email, address, phone, payment ref. Legal basis: contract performance (Art. 6(1)(b) GDPR).</li>
+        <li><strong>Account data</strong> — email + hashed password. Legal basis: consent / contract.</li>
+        <li><strong>Designs and uploads</strong> — kept for production. Legal basis: contract performance.</li>
+        <li><strong>Analytics</strong> — only with your explicit cookie consent. Legal basis: consent (Art. 6(1)(a) GDPR).</li>
+        <li><strong>Marketing</strong> — only with separate consent. You can withdraw at any time.</li>
+      </ul>
+
+      <h2 class="mt-6 text-xl font-semibold">3. How long we keep it</h2>
+      <p>Order records are retained for 10 years (German fiscal law). Designs are deleted 24 months after the last order unless you keep them. Analytics data is anonymised after 14 months.</p>
+
+      <h2 class="mt-6 text-xl font-semibold">4. Who we share it with</h2>
+      <ul class="list-disc pl-6">
+        <li>Payment providers (Stripe, PayPal) — only the strict minimum.</li>
+        <li>Shipping partners (DHL, DPD) — name and delivery address.</li>
+        <li>Hosting in EU (Germany) — Hetzner Cloud, AWS Frankfurt.</li>
+      </ul>
+      <p>We never sell personal data. We never transfer data outside the EU/EEA without an adequacy decision or SCCs.</p>
+
+      <h2 class="mt-6 text-xl font-semibold">5. Your rights</h2>
+      <p>Under the GDPR you may:</p>
+      <ul class="list-disc pl-6">
+        <li>Request a copy of your data (Art. 15)</li>
+        <li>Have inaccurate data corrected (Art. 16)</li>
+        <li>Request deletion ("right to be forgotten", Art. 17)</li>
+        <li>Restrict or object to processing (Art. 18, 21)</li>
+        <li>Data portability (Art. 20)</li>
+        <li>Lodge a complaint with the supervisory authority (Berlin: BlnBDI)</li>
+      </ul>
+      <p>
+        To exercise these rights, write to our DPO or visit
+        <a href="/legal/gdpr" class="text-indigo-600 underline">your data centre</a>.
+      </p>
+
+      <h2 class="mt-6 text-xl font-semibold">6. Cookies</h2>
+      <p>See our <a href="/legal/cookies" class="text-indigo-600 underline">cookie policy</a> for full details.</p>
+    </div>
+  </div>
+</BaseLayout>

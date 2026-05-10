@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Jobsheet {{ $job->job_number }}</title>
+    <style>
+        body { font-family: sans-serif; font-size: 12px; }
+        h1 { margin: 0 0 12px 0; }
+        table { border-collapse: collapse; width: 100%; margin-top: 12px; }
+        th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; }
+        th { background: #f4f4f4; }
+        .section { margin-top: 18px; }
+        .meta { color: #555; font-size: 11px; }
+    </style>
+</head>
+<body>
+    <h1>Jobsheet — {{ $job->job_number }}</h1>
+    <p class="meta">Source: {{ $job->source }}</p>
+    <p>
+        <strong>External order:</strong> {{ $job->external_order_ref }} / item {{ $job->external_order_item_ref }}<br>
+        <strong>Product:</strong> {{ $job->product_name }}<br>
+        <strong>Quantity:</strong> {{ $snapshot['quantity'] ?? '—' }}
+    </p>
+
+    <div class="section">
+        <h2>Configuration</h2>
+        <table>
+            <thead><tr><th>Option</th><th>Value</th></tr></thead>
+            <tbody>
+            @foreach ($snapshot['configuration'] ?? [] as $option => $value)
+                <tr><td>{{ $option }}</td><td>{{ is_array($value) ? json_encode($value) : $value }}</td></tr>
+            @endforeach
+            </tbody>
+        </table>
+    </div>
+
+    @if (! empty($snapshot['customer']))
+    <div class="section">
+        <h2>Customer</h2>
+        <p>
+            {{ $snapshot['customer']['name'] ?? '—' }}<br>
+            {{ $snapshot['customer']['email'] ?? '' }}<br>
+            {{ $snapshot['customer']['phone'] ?? '' }}
+        </p>
+    </div>
+    @endif
+
+    @if (! empty($snapshot['shipping_address']))
+    <div class="section">
+        <h2>Ship to</h2>
+        <p>
+            {{ $snapshot['shipping_address']['name'] ?? '' }}<br>
+            {{ $snapshot['shipping_address']['street1'] ?? '' }}
+            {{ $snapshot['shipping_address']['street2'] ?? '' }}<br>
+            {{ $snapshot['shipping_address']['postcode'] ?? '' }} {{ $snapshot['shipping_address']['city'] ?? '' }}<br>
+            {{ $snapshot['shipping_address']['country'] ?? '' }}
+        </p>
+    </div>
+    @endif
+
+    <div class="section">
+        <h2>Files</h2>
+        <p><strong>Artwork:</strong> {{ $files['artwork'] ?? 'n/a' }}</p>
+    </div>
+</body>
+</html>

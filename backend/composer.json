@@ -1,0 +1,71 @@
+{
+    "name": "webtoprint/backend",
+    "type": "project",
+    "description": "Web-to-Print Platform — backend API and modular domain.",
+    "license": "proprietary",
+    "require": {
+        "php": "^8.3",
+        "laravel/framework": "^11.20",
+        "laravel/sanctum": "^4.0",
+        "laravel/horizon": "^5.27",
+        "laravel/tinker": "^2.9",
+        "spatie/laravel-data": "^4.10",
+        "spatie/laravel-query-builder": "^6.0",
+        "league/flysystem-aws-s3-v3": "^3.28",
+        "ramsey/uuid": "^4.7",
+        "meilisearch/meilisearch-php": "^1.10",
+        "darkaonline/l5-swagger": "^8.6",
+        "filament/filament": "^3.2",
+        "vanilo/framework": "^4.2"
+    },
+    "require-dev": {
+        "fakerphp/faker": "^1.23",
+        "laravel/pint": "^1.18",
+        "mockery/mockery": "^1.6",
+        "nunomaduro/collision": "^8.4",
+        "pestphp/pest": "^3.5",
+        "pestphp/pest-plugin-laravel": "^3.0",
+        "phpunit/phpunit": "^11.4",
+        "spatie/laravel-ignition": "^2.8"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "app/",
+            "Database\\Factories\\": "database/factories/",
+            "Database\\Seeders\\": "database/seeders/",
+            "Modules\\": "modules/",
+            "Custom\\": "../custom/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "post-autoload-dump": [
+            "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
+            "@php artisan package:discover --ansi"
+        ],
+        "post-update-cmd": [
+            "@php artisan vendor:publish --tag=laravel-assets --ansi --force"
+        ],
+        "test": "pest"
+    },
+    "extra": {
+        "laravel": {
+            "dont-discover": []
+        }
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "preferred-install": "dist",
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true,
+            "php-http/discovery": true
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

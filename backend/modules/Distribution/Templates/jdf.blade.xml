@@ -1,0 +1,26 @@
+{!! '<' !!}?xml version="1.0" encoding="UTF-8"?>
+<JDF xmlns="http://www.CIP4.org/JDFSchema_1_1"
+     ID="{{ $job->id }}"
+     Type="Product"
+     Status="Waiting"
+     JobID="{{ $job->job_number }}"
+     JobPartID="{{ $job->job_number }}-1"
+     DescriptiveName="{{ $job->product_name }}">
+    <ResourcePool>
+        <Component ID="ART" Class="Quantity" ComponentType="FinalProduct"
+                   Amount="{{ $snapshot['quantity'] ?? 1 }}">
+            @foreach ($snapshot['configuration'] ?? [] as $key => $value)
+            <GeneralID IDUsage="{{ $key }}" IDValue="{{ is_array($value) ? json_encode($value) : $value }}"/>
+            @endforeach
+        </Component>
+        <RunList ID="RL" Class="Parameter">
+            <LayoutElement>
+                <FileSpec URL="{{ $files['artwork'] ?? '' }}"/>
+            </LayoutElement>
+        </RunList>
+    </ResourcePool>
+    <ResourceLinkPool>
+        <ComponentLink rRef="ART" Usage="Output"/>
+        <RunListLink rRef="RL" Usage="Input"/>
+    </ResourceLinkPool>
+</JDF>

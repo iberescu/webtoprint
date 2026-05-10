@@ -1,0 +1,55 @@
+---
+import BaseLayout from '~/layouts/BaseLayout.astro';
+---
+<BaseLayout title="Cookie policy — PrintHub">
+  <div class="mx-auto max-w-3xl px-4 py-10">
+    <h1 class="text-3xl font-bold tracking-tight">Cookie policy</h1>
+    <p class="mt-2 text-sm text-slate-500">Last updated: 1 January 2026</p>
+
+    <div class="prose prose-slate mt-6 max-w-none text-slate-700">
+      <p>
+        We use cookies to make this site work and — only with your explicit consent —
+        to understand traffic and personalise content. You can change your choice anytime
+        by clicking <button onclick="localStorage.removeItem('cookie_consent_v1'); location.reload();" class="font-semibold text-indigo-600 underline">reset cookie preferences</button>.
+      </p>
+
+      <h2 class="mt-6 text-xl font-semibold">Categories</h2>
+      <table class="mt-3 w-full border-collapse text-sm">
+        <thead>
+          <tr class="border-b border-slate-200 bg-slate-50 text-left">
+            <th class="p-2">Category</th><th class="p-2">Purpose</th><th class="p-2">Lifetime</th><th class="p-2">Required?</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-b border-slate-100">
+            <td class="p-2 font-semibold">Essential</td>
+            <td class="p-2">Cart token, session, CSRF, security. Without these the site cannot work.</td>
+            <td class="p-2">Session / 30 days</td>
+            <td class="p-2">Always</td>
+          </tr>
+          <tr class="border-b border-slate-100">
+            <td class="p-2 font-semibold">Analytics</td>
+            <td class="p-2">Anonymous traffic & feature-usage statistics (Plausible-style).</td>
+            <td class="p-2">12 months</td>
+            <td class="p-2">Opt-in</td>
+          </tr>
+          <tr class="border-b border-slate-100">
+            <td class="p-2 font-semibold">Marketing</td>
+            <td class="p-2">Re-targeting, conversion measurement, personalised offers.</td>
+            <td class="p-2">12 months</td>
+            <td class="p-2">Opt-in</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2 class="mt-6 text-xl font-semibold">Your current choice</h2>
+      <pre id="current-choice" class="mt-2 rounded bg-slate-100 p-3 text-xs">loading…</pre>
+      <script is:inline>
+        try {
+          const c = JSON.parse(localStorage.getItem('cookie_consent_v1') || 'null');
+          document.getElementById('current-choice').textContent = JSON.stringify(c, null, 2);
+        } catch {}
+      </script>
+    </div>
+  </div>
+</BaseLayout>

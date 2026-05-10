@@ -1,0 +1,8 @@
+---
+import BaseLayout from '~/layouts/BaseLayout.astro';
+import CartView from '~/components/CartView';
+---
+<BaseLayout title="Cart">
+  <h1 class="mb-4 text-2xl font-bold">Cart</h1>
+  <CartView client:only="react" />
+</BaseLayout>

@@ -1,0 +1,20 @@
+{!! '<' !!}?xml version="1.0" encoding="UTF-8"?>
+<Job>
+    <JobNumber>{{ $job->job_number }}</JobNumber>
+    <Source>{{ $job->source }}</Source>
+    <ExternalOrderRef>{{ $job->external_order_ref }}</ExternalOrderRef>
+    <ExternalOrderItemRef>{{ $job->external_order_item_ref }}</ExternalOrderItemRef>
+    <Product>{{ $job->product_name }}</Product>
+    <Quantity>{{ $snapshot['quantity'] ?? 1 }}</Quantity>
+    <Configuration>
+        @foreach ($snapshot['configuration'] ?? [] as $key => $value)
+        <Option name="{{ $key }}">{{ is_array($value) ? json_encode($value) : $value }}</Option>
+        @endforeach
+    </Configuration>
+    <Artwork>{{ $files['artwork'] ?? '' }}</Artwork>
+    <Customer>
+        <Name>{{ $snapshot['customer']['name'] ?? 'Guest' }}</Name>
+        <Email>{{ $snapshot['customer']['email'] ?? '' }}</Email>
+        <Phone>{{ $snapshot['customer']['phone'] ?? '' }}</Phone>
+    </Customer>
+</Job>

@@ -1,0 +1,47 @@
+---
+import BaseLayout from '~/layouts/BaseLayout.astro';
+---
+<BaseLayout title="My data — GDPR — PrintHub">
+  <div class="mx-auto max-w-3xl px-4 py-10">
+    <h1 class="text-3xl font-bold tracking-tight">My data (GDPR)</h1>
+    <p class="mt-2 text-slate-600">
+      Under the GDPR you have the right to access, correct or delete the personal data we hold about you.
+      Use the buttons below or contact our DPO directly.
+    </p>
+
+    <div class="mt-8 grid gap-4 md:grid-cols-3">
+      <a href="mailto:dpo@demoprint.example?subject=Article%2015%20%E2%80%94%20Data%20access%20request" class="block rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200 hover:shadow-md">
+        <div class="text-3xl">📥</div>
+        <h2 class="mt-2 font-semibold">Request my data</h2>
+        <p class="mt-1 text-sm text-slate-600">Receive a copy of all data we hold about you (Art. 15 GDPR). We respond within 30 days.</p>
+      </a>
+      <a href="mailto:dpo@demoprint.example?subject=Article%2016%20%E2%80%94%20Data%20correction" class="block rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200 hover:shadow-md">
+        <div class="text-3xl">✏️</div>
+        <h2 class="mt-2 font-semibold">Correct my data</h2>
+        <p class="mt-1 text-sm text-slate-600">Have inaccurate or out-of-date information about you corrected (Art. 16 GDPR).</p>
+      </a>
+      <a href="mailto:dpo@demoprint.example?subject=Article%2017%20%E2%80%94%20Erasure%20request" class="block rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200 hover:shadow-md">
+        <div class="text-3xl">🗑️</div>
+        <h2 class="mt-2 font-semibold">Delete my account</h2>
+        <p class="mt-1 text-sm text-slate-600">"Right to be forgotten" (Art. 17 GDPR). Some data must be retained for fiscal reasons (10 yrs).</p>
+      </a>
+    </div>
+
+    <div class="mt-10 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+      <strong>Cookie preferences.</strong> Your current consent state is shown on the
+      <a href="/legal/cookies" class="underline">cookie policy page</a> — you can change it at any time.
+    </div>
+
+    <div class="mt-10 text-sm text-slate-600">
+      <h2 class="font-semibold text-slate-900">Supervisory authority</h2>
+      <p class="mt-1">
+        You have the right to lodge a complaint with the supervisory authority. The competent authority for our
+        company is:
+      </p>
+      <address class="mt-2 not-italic">
+        Berliner Beauftragte für Datenschutz und Informationsfreiheit (BlnBDI)<br>
+        Friedrichstr. 219, 10969 Berlin, Germany
+      </address>
+    </div>
+  </div>
+</BaseLayout>

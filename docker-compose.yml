@@ -1,0 +1,127 @@
+name: webtoprint
+
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    depends_on: [php]
+    ports:
+      - "8000:80"
+    volumes:
+      - ./backend:/var/www/html:cached
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+
+  php:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    depends_on: [postgres, redis, minio]
+    env_file: [.env]
+    volumes:
+      - ./backend:/var/www/html:cached
+      - ./custom:/var/www/custom:cached
+      - ./packages:/var/www/packages:cached
+    working_dir: /var/www/html
+
+  horizon:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    depends_on: [postgres, redis, minio]
+    env_file: [.env]
+    volumes:
+      - ./backend:/var/www/html:cached
+      - ./custom:/var/www/custom:cached
+    working_dir: /var/www/html
+    command: ["php", "artisan", "horizon"]
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    depends_on: [postgres, redis]
+    env_file: [.env]
+    volumes:
+      - ./backend:/var/www/html:cached
+      - ./custom:/var/www/custom:cached
+    working_dir: /var/www/html
+    command: ["php", "artisan", "schedule:work"]
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: webtoprint
+      POSTGRES_USER: webtoprint
+      POSTGRES_PASSWORD: webtoprint
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+
+  minio:
+    image: minio/minio:latest
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: webtoprint
+      MINIO_ROOT_PASSWORD: webtoprint-secret
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - miniodata:/data
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on: [minio]
+    entrypoint: >
+      /bin/sh -c "
+      until /usr/bin/mc alias set local http://minio:9000 webtoprint webtoprint-secret; do sleep 1; done;
+      /usr/bin/mc mb -p local/webtoprint || true;
+      /usr/bin/mc anonymous set download local/webtoprint || true;
+      "
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.10
+    environment:
+      MEILI_MASTER_KEY: webtoprint-meili-master
+    ports:
+      - "7700:7700"
+    volumes:
+      - meilidata:/meili_data
+
+  storefront:
+    image: node:20-alpine
+    working_dir: /app
+    depends_on: [nginx]
+    environment:
+      PUBLIC_API_URL: http://localhost:8000/api/v1
+    volumes:
+      - ./storefront:/app:cached
+      - storefront_node_modules:/app/node_modules
+    command: ["sh", "-c", "corepack enable && pnpm install && pnpm dev --host 0.0.0.0"]
+    ports:
+      - "4321:4321"
+
+  designer:
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      - ./designer:/app:cached
+      - designer_node_modules:/app/node_modules
+    command: ["sh", "-c", "corepack enable && pnpm install && pnpm dev --host 0.0.0.0"]
+    ports:
+      - "5173:5173"
+
+volumes:
+  pgdata:
+  redisdata:
+  miniodata:
+  meilidata:
+  storefront_node_modules:
+  designer_node_modules:

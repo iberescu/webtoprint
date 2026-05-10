@@ -1,0 +1,54 @@
+---
+const apiBase = process.env.INTERNAL_API_URL ?? process.env.PUBLIC_API_URL ?? 'http://localhost:8000/api/v1';
+let categories: { slug: string; name: string }[] = [];
+try {
+  const res = await fetch(`${apiBase}/products?per_page=50`);
+  const payload = await res.json();
+  const seen = new Map<string, string>();
+  for (const p of payload?.data?.data ?? []) {
+    if (p.category && !seen.has(p.category.slug)) seen.set(p.category.slug, p.category.name);
+  }
+  categories = [...seen.entries()].map(([slug, name]) => ({ slug, name }));
+} catch {}
+---
+<header class="sticky top-0 z-40 border-b border-slate-200 bg-white">
+  <div class="bg-gradient-to-r from-indigo-700 via-indigo-700 to-purple-700 px-4 py-1.5 text-center text-xs font-medium text-white">
+    🇪🇺 Free EU delivery on orders over €99 · 24h express production · 100% satisfaction guarantee
+  </div>
+
+  <div class="mx-auto flex max-w-7xl items-center justify-between gap-6 px-4 py-3">
+    <a href="/" class="flex items-center gap-2">
+      <img src="/images/logo.png" alt="PrintHub" class="h-10 w-10 rounded-lg" width="40" height="40" />
+      <span class="text-xl font-extrabold tracking-tight text-slate-900">Print<span class="text-indigo-600">Hub</span></span>
+    </a>
+
+    <nav class="hidden flex-1 justify-center gap-6 text-sm font-semibold text-slate-700 md:flex">
+      <a href="/products" class="hover:text-indigo-600">All products</a>
+      {categories.map((c) => (
+        <a href={`/products?category=${c.slug}`} class="hover:text-indigo-600">{c.name}</a>
+      ))}
+    </nav>
+
+    <div class="flex items-center gap-2">
+      <a
+        href="#"
+        class="hidden items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 md:flex"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-4 w-4">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
+        </svg>
+        Sign in
+      </a>
+      <a
+        href="/cart"
+        class="flex items-center gap-1.5 rounded-lg bg-amber-400 px-4 py-2 text-sm font-bold text-slate-900 hover:bg-amber-300"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-4 w-4">
+          <path d="M3 3h2l3 12h12l2-8H7" />
+          <circle cx="9" cy="20" r="1.5" /><circle cx="18" cy="20" r="1.5" />
+        </svg>
+        Cart
+      </a>
+    </div>
+  </div>
+</header>
