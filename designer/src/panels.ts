@@ -1,10 +1,9 @@
 import { Canvas, FabricImage, IText, Rect, Circle, Triangle } from 'fabric';
 
 /**
- * Renders the active left-panel content (templates / text / uploads / shapes
- * / colors / QR) and wires up button-level interactions on the canvas.
- *
- * Vistaprint-style "click to add", and Canva-style template thumbs.
+ * Renders left-tool panels (templates / text / uploads / shapes / colors / QR)
+ * and the always-visible "selected layer" properties block. Vistaprint-style
+ * "click to add" interactions, Canva-style template thumbs.
  */
 export type PanelKind = 'templates' | 'text' | 'uploads' | 'shapes' | 'colors' | 'qr';
 
@@ -15,12 +14,12 @@ const SWATCHES = [
 ];
 
 const TEMPLATES = [
-  { name: 'Modern Indigo',  bg: 'linear-gradient(135deg, #4f46e5, #6366f1)', text: 'Acme Studio',  text2: 'Design + Print' },
-  { name: 'Bold Amber',     bg: 'linear-gradient(135deg, #f59e0b, #ea580c)', text: 'Sunrise Café', text2: 'Coffee · Pastries · Books' },
-  { name: 'Minimal Slate',  bg: '#0f172a',                                   text: 'Helvetica Co.', text2: 'Brand Strategy' },
-  { name: 'Pastel Pink',    bg: 'linear-gradient(135deg, #fbcfe8, #fda4af)', text: 'Bloom Florals', text2: 'Wedding · Events' },
-  { name: 'Forest',         bg: 'linear-gradient(135deg, #166534, #22c55e)', text: 'Greenleaf',     text2: 'Sustainable design' },
-  { name: 'Premium Black',  bg: 'linear-gradient(135deg, #18181b, #3f3f46)', text: 'Onyx Studio',   text2: 'Luxury & lifestyle' },
+  { name: 'Modern Indigo',  bg: '#4f46e5', accent: '#fbbf24', text: 'Acme Studio',  text2: 'Design + Print' },
+  { name: 'Bold Amber',     bg: '#f59e0b', accent: '#1e293b', text: 'Sunrise Café', text2: 'Coffee · Pastries · Books' },
+  { name: 'Minimal Slate',  bg: '#0f172a', accent: '#94a3b8', text: 'Helvetica Co.', text2: 'Brand Strategy' },
+  { name: 'Pastel Pink',    bg: '#fbcfe8', accent: '#9d174d', text: 'Bloom Florals', text2: 'Wedding · Events' },
+  { name: 'Forest',         bg: '#166534', accent: '#86efac', text: 'Greenleaf',     text2: 'Sustainable design' },
+  { name: 'Premium Black',  bg: '#18181b', accent: '#fbbf24', text: 'Onyx Studio',   text2: 'Luxury & lifestyle' },
 ];
 
 const SHAPES = [
@@ -41,16 +40,11 @@ export function renderPanel(panelEl: HTMLElement, kind: PanelKind, canvas: Canva
   }
 }
 
-// ----- Templates ------------------------------------------------------------
-
 function renderTemplates(panel: HTMLElement, canvas: Canvas) {
   panel.innerHTML = `
-    <h2>Templates</h2>
-    <div class="panel-section">
-      <h3>Quick start</h3>
-      <p style="margin: 0 0 10px; font-size: 12px; color: var(--muted)">Click a template to apply it to your design.</p>
-      <div class="templates"></div>
-    </div>
+    <h2 class="section-title">Templates</h2>
+    <p style="margin: 0 0 12px; font-size: 12px; color: var(--muted)">Click a template to start. You can edit any element afterwards.</p>
+    <div class="templates"></div>
   `;
   const grid = panel.querySelector('.templates')!;
   TEMPLATES.forEach((tpl) => {
@@ -58,9 +52,10 @@ function renderTemplates(panel: HTMLElement, canvas: Canvas) {
     card.className = 'template-card';
     card.style.background = tpl.bg;
     card.innerHTML = `
-      <div style="position:absolute; inset:0; padding:12px; display:flex; flex-direction:column; justify-content:flex-end; color:white; font-family: ui-sans-serif, system-ui, sans-serif;">
-        <div style="font-weight:800; font-size:13px;">${tpl.text}</div>
-        <div style="font-size:10px; opacity:0.85;">${tpl.text2}</div>
+      <div style="position:absolute; inset:0; padding:10px; display:flex; flex-direction:column; justify-content:flex-end; color:white; font-family: ui-sans-serif, system-ui, sans-serif;">
+        <div style="height:3px; width:24px; background:${tpl.accent}; margin-bottom:6px; border-radius:2px;"></div>
+        <div style="font-weight:800; font-size:12px;">${tpl.text}</div>
+        <div style="font-size:9px; opacity:0.85;">${tpl.text2}</div>
       </div>
     `;
     card.title = tpl.name;
@@ -75,51 +70,45 @@ function applyTemplate(canvas: Canvas, tpl: typeof TEMPLATES[number]) {
   canvas.clear();
   keepers.forEach((o) => canvas.add(o));
 
-  // Background — use a flat colour (Fabric doesn't render CSS gradients on background)
-  const flat = tpl.bg.startsWith('linear-gradient') ? tpl.bg.match(/#[0-9a-f]{6}/i)?.[0] ?? '#1e1b4b' : tpl.bg;
   const bg = new Rect({
     left: 0, top: 0, width: canvas.getWidth(), height: canvas.getHeight(),
-    fill: flat, selectable: false, evented: false,
+    fill: tpl.bg, selectable: false, evented: false,
   });
   canvas.add(bg);
   canvas.sendObjectToBack(bg);
 
+  // Accent bar
+  const bar = new Rect({
+    left: 40, top: 60, width: 60, height: 4, fill: tpl.accent,
+  });
   const heading = new IText(tpl.text, {
-    left: 40, top: canvas.getHeight() - 90, fontFamily: 'Helvetica', fontSize: 30,
+    left: 40, top: 80, fontFamily: 'Helvetica', fontSize: 30,
     fontWeight: 'bold', fill: '#ffffff',
   });
   const sub = new IText(tpl.text2, {
-    left: 40, top: canvas.getHeight() - 50, fontFamily: 'Helvetica', fontSize: 14,
+    left: 40, top: 120, fontFamily: 'Helvetica', fontSize: 14,
     fill: 'rgba(255,255,255,0.85)',
   });
-  canvas.add(heading, sub);
+  canvas.add(bar, heading, sub);
   canvas.setActiveObject(heading);
   canvas.renderAll();
 }
 
-// ----- Text -----------------------------------------------------------------
-
 function renderText(panel: HTMLElement, canvas: Canvas) {
   panel.innerHTML = `
-    <h2>Text</h2>
-    <div class="panel-section">
-      <button class="btn btn-secondary" id="add-heading" style="width:100%; margin-bottom:8px;">＋ Heading</button>
-      <button class="btn btn-secondary" id="add-subheading" style="width:100%; margin-bottom:8px;">＋ Subheading</button>
-      <button class="btn btn-secondary" id="add-body" style="width:100%; margin-bottom:8px;">＋ Body text</button>
-    </div>
-    <div class="panel-section">
-      <h3>Quick text</h3>
-      <button class="btn btn-secondary" data-text="Your Name" style="width:100%; margin-bottom:6px;">Your Name</button>
-      <button class="btn btn-secondary" data-text="Job Title" style="width:100%; margin-bottom:6px;">Job Title</button>
-      <button class="btn btn-secondary" data-text="hello@example.com" style="width:100%; margin-bottom:6px;">Email</button>
-      <button class="btn btn-secondary" data-text="+49 30 123 4567" style="width:100%; margin-bottom:6px;">Phone</button>
-      <button class="btn btn-secondary" data-text="www.example.com" style="width:100%;">Website</button>
-    </div>
+    <h2 class="section-title">Text</h2>
+    <button class="btn btn-secondary" id="add-heading" style="width:100%; margin-bottom:8px;">＋ Heading</button>
+    <button class="btn btn-secondary" id="add-subheading" style="width:100%; margin-bottom:8px;">＋ Subheading</button>
+    <button class="btn btn-secondary" id="add-body" style="width:100%; margin-bottom:8px;">＋ Body text</button>
+    <h3 class="subsection-title" style="margin-top: 18px;">Quick text</h3>
+    <button class="btn btn-secondary" data-text="Your Name" style="width:100%; margin-bottom:6px;">Your Name</button>
+    <button class="btn btn-secondary" data-text="Job Title" style="width:100%; margin-bottom:6px;">Job Title</button>
+    <button class="btn btn-secondary" data-text="hello@example.com" style="width:100%; margin-bottom:6px;">Email</button>
+    <button class="btn btn-secondary" data-text="+49 30 123 4567" style="width:100%; margin-bottom:6px;">Phone</button>
+    <button class="btn btn-secondary" data-text="www.example.com" style="width:100%;">Website</button>
   `;
-  const add = (text: string, fontSize: number, fontWeight: string = 'normal') => {
-    const t = new IText(text, {
-      left: 80, top: 80, fontFamily: 'Helvetica', fontSize, fontWeight, fill: '#0f172a',
-    });
+  const add = (text: string, fontSize: number, fontWeight = 'normal') => {
+    const t = new IText(text, { left: 80, top: 80, fontFamily: 'Helvetica', fontSize, fontWeight, fill: '#0f172a' });
     canvas.add(t); canvas.setActiveObject(t); canvas.renderAll();
   };
   panel.querySelector('#add-heading')!.addEventListener('click', () => add('Heading', 32, 'bold'));
@@ -130,21 +119,15 @@ function renderText(panel: HTMLElement, canvas: Canvas) {
   });
 }
 
-// ----- Uploads --------------------------------------------------------------
-
 function renderUploads(panel: HTMLElement, canvas: Canvas) {
   panel.innerHTML = `
-    <h2>Uploads</h2>
-    <div class="panel-section">
-      <input type="file" id="image-input" accept="image/*" hidden multiple />
-      <button class="btn btn-primary" id="upload-trigger" style="width:100%;">⤴ Upload images</button>
-      <p style="margin:8px 0 0; font-size:11px; color: var(--muted)">JPG, PNG, SVG · up to 20 MB each</p>
-    </div>
-    <div class="panel-section">
-      <h3>Recent uploads</h3>
-      <div class="uploads" id="upload-grid">
-        <div class="upload-tile">No uploads yet</div>
-      </div>
+    <h2 class="section-title">Uploads</h2>
+    <input type="file" id="image-input" accept="image/*" hidden multiple />
+    <button class="btn btn-primary" id="upload-trigger" style="width:100%; justify-content: center;">⤴ Upload images</button>
+    <p style="margin:8px 0 16px; font-size:11px; color: var(--muted)">JPG, PNG, SVG · up to 20 MB each</p>
+    <h3 class="subsection-title">Recent uploads</h3>
+    <div class="uploads" id="upload-grid">
+      <div class="upload-tile">No uploads yet</div>
     </div>
   `;
   const input = panel.querySelector<HTMLInputElement>('#image-input')!;
@@ -172,14 +155,10 @@ function renderUploads(panel: HTMLElement, canvas: Canvas) {
   });
 }
 
-// ----- Shapes ---------------------------------------------------------------
-
 function renderShapes(panel: HTMLElement, canvas: Canvas) {
   panel.innerHTML = `
-    <h2>Shapes</h2>
-    <div class="panel-section">
-      <div class="templates" id="shapes-grid"></div>
-    </div>
+    <h2 class="section-title">Shapes</h2>
+    <div class="templates" id="shapes-grid"></div>
   `;
   const grid = panel.querySelector<HTMLElement>('#shapes-grid')!;
   SHAPES.forEach((s) => {
@@ -216,20 +195,14 @@ function addShape(canvas: Canvas, kind: string) {
   canvas.add(obj); canvas.setActiveObject(obj); canvas.renderAll();
 }
 
-// ----- Colors ---------------------------------------------------------------
-
 function renderColors(panel: HTMLElement, canvas: Canvas) {
   panel.innerHTML = `
-    <h2>Colors</h2>
-    <div class="panel-section">
-      <h3>Document background</h3>
-      <div class="colors" id="bg-colors"></div>
-    </div>
-    <div class="panel-section">
-      <h3>Selected element fill</h3>
-      <p style="margin:0 0 8px; font-size:12px; color: var(--muted)">Pick something on the canvas first.</p>
-      <div class="colors" id="fill-colors"></div>
-    </div>
+    <h2 class="section-title">Colors</h2>
+    <h3 class="subsection-title">Document background</h3>
+    <div class="colors" id="bg-colors"></div>
+    <h3 class="subsection-title" style="margin-top: 16px;">Selected element fill</h3>
+    <p style="margin:0 0 8px; font-size:11px; color: var(--muted)">Pick an element first.</p>
+    <div class="colors" id="fill-colors"></div>
   `;
   const renderSwatches = (el: Element, onPick: (c: string) => void) => {
     SWATCHES.forEach((c) => {
@@ -252,35 +225,30 @@ function renderColors(panel: HTMLElement, canvas: Canvas) {
   });
 }
 
-// ----- QR code --------------------------------------------------------------
-
 function renderQR(panel: HTMLElement, canvas: Canvas) {
   panel.innerHTML = `
-    <h2>QR code</h2>
-    <div class="panel-section">
-      <p style="margin:0 0 8px; font-size:12px; color: var(--muted)">Generate a QR code from any URL or text — perfect for business cards and flyers.</p>
-      <div class="field">
-        <label>Content</label>
-        <input type="text" id="qr-text" placeholder="https://your-website.com" />
-      </div>
-      <button class="btn btn-primary" id="qr-add" style="width:100%;">＋ Add QR code to design</button>
-    </div>
+    <h2 class="section-title">QR code</h2>
+    <p style="margin:0 0 12px; font-size:12px; color: var(--muted)">Generate a QR code from any URL or text — perfect for business cards and flyers.</p>
+    <div class="field"><label>Content</label><input type="text" id="qr-text" placeholder="https://your-website.com" /></div>
+    <button class="btn btn-primary" id="qr-add" style="width:100%; justify-content: center;">＋ Add QR code</button>
   `;
   panel.querySelector('#qr-add')!.addEventListener('click', async () => {
     const text = panel.querySelector<HTMLInputElement>('#qr-text')!.value || 'https://printhub.example';
-    // External QR service. In production swap for an offline lib (qrcode-svg).
     const url = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(text)}`;
-    const img = await FabricImage.fromURL(url, { crossOrigin: 'anonymous' });
-    img.set({ left: 60, top: 60, scaleX: 0.6, scaleY: 0.6 });
-    canvas.add(img); canvas.setActiveObject(img); canvas.renderAll();
+    try {
+      const img = await FabricImage.fromURL(url, { crossOrigin: 'anonymous' });
+      img.set({ left: 60, top: 60, scaleX: 0.6, scaleY: 0.6 });
+      canvas.add(img); canvas.setActiveObject(img); canvas.renderAll();
+    } catch (e) {
+      alert(`QR generation failed: ${e}`);
+    }
   });
 }
 
-// ----- Right-side: properties for the selected layer ------------------------
+// ----- Selected-layer properties (rendered in the LEFT bottom block) --------
 
-export function renderProperties(rightEl: HTMLElement, canvas: Canvas) {
+export function renderProperties(propsEl: HTMLElement, canvas: Canvas) {
   const obj: any = canvas.getActiveObject();
-  const propsEl = rightEl.querySelector<HTMLElement>('#props')!;
   if (!obj) {
     propsEl.innerHTML = '<div class="empty-state">Click any element on the canvas to edit it.</div>';
     return;
@@ -302,10 +270,10 @@ export function renderProperties(rightEl: HTMLElement, canvas: Canvas) {
       </div>
       <div class="field"><label>Font</label>
         <select id="p-font">
-          <option value="Helvetica">Helvetica</option>
-          <option value="Georgia">Georgia</option>
-          <option value="Times New Roman">Times</option>
-          <option value="Courier New">Courier</option>
+          <option value="Helvetica" ${obj.fontFamily === 'Helvetica' ? 'selected' : ''}>Helvetica</option>
+          <option value="Georgia" ${obj.fontFamily === 'Georgia' ? 'selected' : ''}>Georgia</option>
+          <option value="Times New Roman" ${obj.fontFamily === 'Times New Roman' ? 'selected' : ''}>Times</option>
+          <option value="Courier New" ${obj.fontFamily === 'Courier New' ? 'selected' : ''}>Courier</option>
         </select>
       </div>
     ` : ''}
@@ -318,15 +286,16 @@ export function renderProperties(rightEl: HTMLElement, canvas: Canvas) {
       <div class="field"><label>Rotation</label><input type="number" id="p-angle" value="${Math.round(obj.angle ?? 0)}" /></div>
       <div class="field"><label>Opacity</label><input type="number" id="p-op" value="${Math.round((obj.opacity ?? 1) * 100)}" min="0" max="100"/></div>
     </div>
-    <div class="row" style="margin-top: 8px;">
-      <button class="btn btn-secondary" id="p-front">Bring forward</button>
-      <button class="btn btn-secondary" id="p-back">Send back</button>
+    <div class="row" style="margin-top: 4px;">
+      <button class="btn btn-secondary" id="p-front" style="justify-content: center;">↑ Forward</button>
+      <button class="btn btn-secondary" id="p-back" style="justify-content: center;">↓ Back</button>
     </div>
-    <button class="btn btn-secondary" id="p-duplicate" style="width:100%; margin-top: 8px;">⧉ Duplicate</button>
-    <button class="btn btn-secondary" id="p-delete" style="width:100%; margin-top: 6px; color: var(--danger); border-color: #fecaca;">🗑 Delete</button>
+    <div class="row" style="margin-top: 6px;">
+      <button class="btn btn-secondary" id="p-duplicate" style="justify-content: center;">⧉ Duplicate</button>
+      <button class="btn btn-secondary" id="p-delete" style="justify-content: center; color: var(--danger); border-color: #fecaca;">🗑 Delete</button>
+    </div>
   `;
 
-  // bind
   if (isText) {
     propsEl.querySelector<HTMLInputElement>('#p-text')!.addEventListener('input', (e) => { obj.set('text', (e.target as HTMLInputElement).value); canvas.renderAll(); });
     propsEl.querySelector<HTMLInputElement>('#p-size')!.addEventListener('input', (e) => { obj.set('fontSize', +(e.target as HTMLInputElement).value); canvas.renderAll(); });

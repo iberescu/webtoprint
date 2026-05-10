@@ -1,33 +1,40 @@
 import { Canvas } from 'fabric';
+import { PDFDocument } from 'pdf-lib';
 import { DesignerClient } from './api';
 import { drawBleedAndSafe } from './overlays';
 import { renderPanel, renderProperties, type PanelKind } from './panels';
 
+// ---------------------------------------------------------------------------
+// Setup
+// ---------------------------------------------------------------------------
+
 const params = new URLSearchParams(window.location.search);
-const designId = params.get('design');
+const designIdFromUrl = params.get('design');
 const productId = params.get('product') ?? '';
 const apiBase = (import.meta as any).env?.VITE_API_URL ?? 'http://localhost:8000/api/v1';
 const client = new DesignerClient(apiBase);
 
-const statusEl = document.getElementById('status') as HTMLElement;
-function flash(msg: string) {
-  statusEl.textContent = msg;
-  statusEl.classList.add('show');
-  setTimeout(() => statusEl.classList.remove('show'), 2200);
+const toastEl = document.getElementById('toast') as HTMLElement;
+function toast(msg: string, kind: 'info' | 'success' | 'error' = 'info') {
+  toastEl.textContent = msg;
+  toastEl.className = `show ${kind}`;
+  clearTimeout((toast as any)._t);
+  (toast as any)._t = setTimeout(() => toastEl.classList.remove('show'), 2400);
 }
 
-// Canvas setup — use a business-card aspect ratio by default. Real production
-// dimensions get applied when a product context is loaded.
-const stageEl = document.getElementById('stage') as HTMLElement;
-const canvasEl = document.getElementById('canvas') as HTMLCanvasElement;
+// Page geometry — defaults to BC; in production this would come from product config.
 const CFG = { trim_w: 600, trim_h: 400, bleed: 18, safe: 30 };
+const canvasEl = document.getElementById('canvas') as HTMLCanvasElement;
 canvasEl.width = CFG.trim_w;
 canvasEl.height = CFG.trim_h;
 
 const canvas = new Canvas(canvasEl, { backgroundColor: '#ffffff', preserveObjectStacking: true });
 drawBleedAndSafe(canvas, CFG);
 
-// --- History stack (undo/redo) ---------------------------------------------
+// ---------------------------------------------------------------------------
+// History (undo/redo) — wraps Fabric's lifecycle events
+// ---------------------------------------------------------------------------
+
 const history: string[] = [];
 let historyIdx = -1;
 let isRestoring = false;
@@ -35,7 +42,6 @@ let isRestoring = false;
 function snapshot() {
   if (isRestoring) return;
   const json = JSON.stringify(canvas.toJSON());
-  // truncate forward history when a new edit happens after an undo
   if (historyIdx < history.length - 1) history.length = historyIdx + 1;
   history.push(json);
   historyIdx = history.length - 1;
@@ -48,23 +54,20 @@ async function restore(json: string) {
   canvas.renderAll();
   isRestoring = false;
 }
-canvas.on('object:added', snapshot);
-canvas.on('object:modified', snapshot);
-canvas.on('object:removed', snapshot);
-snapshot(); // initial empty state
+canvas.on('object:added', () => { snapshot(); scheduleAutosave(); });
+canvas.on('object:modified', () => { snapshot(); scheduleAutosave(); });
+canvas.on('object:removed', () => { snapshot(); scheduleAutosave(); });
+snapshot();
 
 document.getElementById('undo')!.addEventListener('click', () => {
   if (historyIdx <= 0) return;
-  historyIdx--;
-  restore(history[historyIdx]);
+  historyIdx--; restore(history[historyIdx]); scheduleAutosave();
 });
 document.getElementById('redo')!.addEventListener('click', () => {
   if (historyIdx >= history.length - 1) return;
-  historyIdx++;
-  restore(history[historyIdx]);
+  historyIdx++; restore(history[historyIdx]); scheduleAutosave();
 });
 
-// keyboard shortcuts
 window.addEventListener('keydown', (e) => {
   const ctrl = e.ctrlKey || e.metaKey;
   if (ctrl && e.key === 'z') { e.preventDefault(); document.getElementById('undo')!.click(); }
@@ -75,68 +78,223 @@ window.addEventListener('keydown', (e) => {
       const target = e.target as HTMLElement;
       if (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA') {
         e.preventDefault();
-        canvas.remove(obj);
-        canvas.discardActiveObject();
-        canvas.renderAll();
+        canvas.remove(obj); canvas.discardActiveObject(); canvas.renderAll();
       }
     }
   }
 });
 
-// --- Left sidebar tabs ------------------------------------------------------
-const panelEl = document.getElementById('panel') as HTMLElement;
+// ---------------------------------------------------------------------------
+// Tool tabs (left sidebar)
+// ---------------------------------------------------------------------------
+
+const toolPanelEl = document.getElementById('tool-panel') as HTMLElement;
 const sidebarBtns = document.querySelectorAll<HTMLButtonElement>('.sidebar button');
 
 function setPanel(kind: PanelKind) {
   sidebarBtns.forEach((b) => b.classList.toggle('active', b.dataset.panel === kind));
-  renderPanel(panelEl, kind, canvas);
+  renderPanel(toolPanelEl, kind, canvas);
 }
 sidebarBtns.forEach((b) => b.addEventListener('click', () => setPanel(b.dataset.panel as PanelKind)));
 setPanel('templates');
 
-// --- Right-side selected-layer properties -----------------------------------
-const rightEl = document.getElementById('right') as HTMLElement;
-const refreshProps = () => renderProperties(rightEl, canvas);
+// ---------------------------------------------------------------------------
+// Selected-layer panel (left, bottom)
+// ---------------------------------------------------------------------------
+
+const layerPropsEl = document.getElementById('layer-props') as HTMLElement;
+const refreshProps = () => renderProperties(layerPropsEl, canvas);
 canvas.on('selection:created', refreshProps);
 canvas.on('selection:updated', refreshProps);
 canvas.on('selection:cleared', refreshProps);
 canvas.on('object:modified', refreshProps);
 
-// --- Top-bar actions --------------------------------------------------------
-let currentDesignId: string | null = designId;
+// ---------------------------------------------------------------------------
+// Save / autosave
+//
+// We *always* operate on a server-side design id. If the URL didn't carry one,
+// the first edit creates a draft transparently. Saving is debounced; the UI
+// shows "Saving…" / "All changes saved" / "Unsaved changes" via the indicator.
+// ---------------------------------------------------------------------------
 
-document.getElementById('save')!.addEventListener('click', async () => {
+let currentDesignId: string | null = designIdFromUrl;
+const saveIndicator = document.getElementById('autosave-indicator')!;
+let autosaveTimer: number | null = null;
+
+async function persistOnce(): Promise<string | null> {
+  saveIndicator.textContent = 'Saving…';
   const json = canvas.toJSON();
   try {
     if (!currentDesignId) {
-      const created = await client.createDesign(productId, json);
+      const created = await client.createDesign(productId || resolveFallbackProductId(), json);
       currentDesignId = created.id;
-      history.replaceState(null, '', `?design=${created.id}&product=${productId}`);
-      flash(`Saved · design ${created.id.slice(0, 8)}`);
+      // Don't push history.replaceState here — risk of triggering a reload during dev.
+      saveIndicator.textContent = `All changes saved · #${currentDesignId.slice(0, 8)}`;
     } else {
       await client.updateDesign(currentDesignId, json);
-      flash('Saved.');
+      saveIndicator.textContent = 'All changes saved';
     }
-  } catch (e) { flash(`Save failed: ${e}`); }
+    return currentDesignId;
+  } catch (e: any) {
+    console.error(e);
+    saveIndicator.textContent = 'Save failed';
+    toast(`Save failed: ${e?.message ?? e}`, 'error');
+    return null;
+  }
+}
+
+function scheduleAutosave() {
+  saveIndicator.textContent = 'Unsaved changes…';
+  if (autosaveTimer) window.clearTimeout(autosaveTimer);
+  autosaveTimer = window.setTimeout(persistOnce, 1200);
+}
+
+// We need a product id even when the URL doesn't supply one (e.g. user opened
+// the designer directly from /designer without a product context). Look the
+// first published product up via the public API and remember it for the session.
+let cachedFallbackProductId: string | null = null;
+function resolveFallbackProductId(): string {
+  if (cachedFallbackProductId) return cachedFallbackProductId;
+  // Synchronous-ish: fire and pray. Returning '' here means createDesign will
+  // 422 — we already pre-warm this on boot so by save time it's populated.
+  return cachedFallbackProductId ?? '';
+}
+(async () => {
+  if (productId) return;
+  try {
+    const res = await fetch(`${apiBase}/products?per_page=1`);
+    const list = (await res.json())?.data?.data ?? [];
+    if (list[0]?.id) {
+      cachedFallbackProductId = list[0].id;
+      // Fill the right-side product card from the catalogue
+      document.getElementById('product-name')!.textContent = list[0].name;
+      document.getElementById('product-name-top')!.textContent = list[0].name;
+      document.getElementById('product-meta')!.textContent =
+        list[0].description ? truncate(list[0].description, 70) : '85 × 55 mm · 350 gsm';
+    }
+  } catch (e) { console.warn('Could not resolve fallback product:', e); }
+})();
+function truncate(s: string, n: number) { return s.length > n ? s.slice(0, n - 1) + '…' : s; }
+
+document.getElementById('save-draft')!.addEventListener('click', async () => {
+  const id = await persistOnce();
+  if (id) toast('Draft saved.', 'success');
 });
 
-document.getElementById('preview')!.addEventListener('click', async () => {
-  if (!currentDesignId) return flash('Save first.');
-  await client.preview(currentDesignId);
-  flash('Preview generation queued.');
-});
+// ---------------------------------------------------------------------------
+// Approve flow:
+//   1. Persist current state (force a save, even if autosave is debounced)
+//   2. Render canvas → high-DPI PNG → PDF-LIB document at trim+bleed size
+//   3. Show modal with editor PNG vs production PDF side-by-side
+//   4. On confirm: tell backend to approve the design
+// ---------------------------------------------------------------------------
+
+const modal = document.getElementById('proof-modal')!;
+const editorPreview = document.getElementById('editor-preview') as HTMLImageElement;
+const pdfPreview = document.getElementById('pdf-preview') as HTMLIFrameElement;
+const pdfDownload = document.getElementById('pdf-download') as HTMLAnchorElement;
+
+document.getElementById('proof-close')!.addEventListener('click', () => modal.classList.remove('show'));
+document.getElementById('proof-back')!.addEventListener('click', () => modal.classList.remove('show'));
 
 document.getElementById('approve')!.addEventListener('click', async () => {
-  if (!currentDesignId) return flash('Save first.');
-  await client.approve(currentDesignId);
-  flash('Approved! Returning to product…');
-  setTimeout(() => {
-    if (window.opener) window.opener.postMessage({ type: 'design-approved', design_id: currentDesignId }, '*');
-    window.history.length > 1 ? window.history.back() : (window.location.href = '/');
-  }, 1200);
+  const approveBtn = document.getElementById('approve') as HTMLButtonElement;
+  approveBtn.disabled = true;
+  approveBtn.textContent = '⏳ Generating proof…';
+
+  try {
+    // 1. Make sure we have a saved design.
+    if (autosaveTimer) { window.clearTimeout(autosaveTimer); autosaveTimer = null; }
+    const id = await persistOnce();
+    if (!id) {
+      toast('Could not save before approving.', 'error');
+      return;
+    }
+
+    // 2. Render the canvas at print resolution, then build a PDF.
+    const editorPng = canvas.toDataURL({ format: 'png', multiplier: 2 });
+    const pdfBytes = await renderProofPdf(editorPng);
+
+    // 3. Show the proof modal.
+    editorPreview.src = editorPng;
+    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+    const blobUrl = URL.createObjectURL(blob);
+    pdfPreview.src = blobUrl;
+    pdfDownload.href = blobUrl;
+    modal.classList.add('show');
+
+    toast('Proof PDF generated. Review it side-by-side with your editor preview.', 'success');
+  } catch (e: any) {
+    console.error(e);
+    toast(`Approve failed: ${e?.message ?? e}`, 'error');
+  } finally {
+    approveBtn.disabled = false;
+    approveBtn.textContent = '✓ Approve & continue';
+  }
 });
 
-// --- Auto-load existing design ----------------------------------------------
+document.getElementById('proof-confirm')!.addEventListener('click', async () => {
+  if (!currentDesignId) return;
+  try {
+    await client.approve(currentDesignId);
+    toast('Approved! Returning to product…', 'success');
+    setTimeout(() => {
+      if (window.opener) {
+        window.opener.postMessage({ type: 'design-approved', design_id: currentDesignId }, '*');
+        window.close();
+      } else {
+        window.location.href = '/';
+      }
+    }, 1500);
+  } catch (e: any) {
+    toast(`Approve failed: ${e?.message ?? e}`, 'error');
+  }
+});
+
+// ---------------------------------------------------------------------------
+// PDF-LIB rendering
+//
+// The canvas is rendered to a data URL at 2× multiplier (≈300 DPI for a
+// 85 × 55 mm trim). We embed that PNG into a PDF-LIB document whose page
+// size is trim + 2× bleed in points (1 mm = 2.83465 pt) so the production
+// PDF matches the spec §8 brief: "set page size including bleed".
+// ---------------------------------------------------------------------------
+
+async function renderProofPdf(pngDataUrl: string): Promise<Uint8Array> {
+  const pdf = await PDFDocument.create();
+
+  // Convert mm geometry to PDF points.
+  const MM = 2.83465;
+  const trimWmm = 85, trimHmm = 55, bleedMm = 3;
+  const pageW = (trimWmm + bleedMm * 2) * MM;
+  const pageH = (trimHmm + bleedMm * 2) * MM;
+
+  const page = pdf.addPage([pageW, pageH]);
+
+  // Strip the data URL prefix and embed.
+  const base64 = pngDataUrl.replace(/^data:image\/png;base64,/, '');
+  const binary = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+  const png = await pdf.embedPng(binary);
+
+  page.drawImage(png, { x: 0, y: 0, width: pageW, height: pageH });
+
+  // Add a tiny imprint with the design id + timestamp in the bleed area.
+  const meta = `Design ${currentDesignId?.slice(0, 8) ?? 'draft'} · ${new Date().toISOString()}`;
+  page.setFontSize(4);
+  page.drawText(meta, { x: 2, y: 2 });
+
+  pdf.setTitle('PrintHub proof');
+  pdf.setAuthor('PrintHub Designer');
+  pdf.setSubject('Production-ready proof PDF');
+  pdf.setProducer('PDF-LIB');
+
+  return await pdf.save();
+}
+
+// ---------------------------------------------------------------------------
+// Auto-load existing design when ?design=… is in the URL
+// ---------------------------------------------------------------------------
+
 (async () => {
   if (!currentDesignId) return;
   try {
@@ -145,9 +303,9 @@ document.getElementById('approve')!.addEventListener('click', async () => {
       await canvas.loadFromJSON(design.design_json);
       drawBleedAndSafe(canvas, CFG);
       canvas.renderAll();
-      flash(`Loaded design ${currentDesignId.slice(0, 8)}`);
+      saveIndicator.textContent = `Loaded · #${currentDesignId.slice(0, 8)}`;
     }
   } catch (e) {
-    flash(`Could not load design: ${e}`);
+    toast(`Could not load design: ${e}`, 'error');
   }
 })();
