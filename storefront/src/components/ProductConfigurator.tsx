@@ -42,6 +42,12 @@ export default function ProductConfigurator({ slug }: Props) {
   const setOption = (code: string, value: string) =>
     setConfig((prev) => ({ ...prev, [code]: value }));
 
+  // If the user came back from the designer, the URL carries ?design=<id>.
+  // Attach it to the cart item so the production job has the artwork.
+  const designId = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('design')
+    : null;
+
   const addToCart = async () => {
     if (!validation?.valid || !price?.valid) return;
     setAdding(true);
@@ -54,6 +60,7 @@ export default function ProductConfigurator({ slug }: Props) {
       }
       await api.cart.addItem(cartId, {
         product_id: data.product.id,
+        design_id: designId ?? null,
         configuration_json: config,
         price_json: price,
         quantity: Number(config.quantity ?? 1),
@@ -69,6 +76,18 @@ export default function ProductConfigurator({ slug }: Props) {
 
   return (
     <div class="space-y-5">
+      {designId && (
+        <div class="flex items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+          <div class="flex items-center gap-2">
+            <span class="grid h-7 w-7 place-items-center rounded-full bg-emerald-500 text-white">✓</span>
+            <div>
+              <div class="font-semibold">Design attached</div>
+              <div class="text-xs text-emerald-700">Design <span class="font-mono">#{designId.slice(0, 8)}</span> from the editor will be printed on this order.</div>
+            </div>
+          </div>
+          <a href={`http://localhost:5173/?design=${designId}&product=${data.product.slug}`} class="text-xs font-semibold text-emerald-700 underline hover:text-emerald-900">Edit design</a>
+        </div>
+      )}
       {data.options.map((opt) => (
         <div key={opt.code}>
           <label class="mb-2 flex items-center justify-between text-sm font-semibold text-slate-700">

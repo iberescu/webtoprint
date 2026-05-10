@@ -10,9 +10,17 @@ import { renderPanel, renderProperties, type PanelKind } from './panels';
 
 const params = new URLSearchParams(window.location.search);
 const designIdFromUrl = params.get('design');
-const productId = params.get('product') ?? '';
+// `?product=` accepts either a UUID (legacy) or a slug like "flyer". We
+// resolve to both forms so save can use the UUID and the redirect can use
+// the slug.
+const productFromUrl = params.get('product') ?? '';
 const apiBase = (import.meta as any).env?.VITE_API_URL ?? 'http://localhost:8000/api/v1';
+const storefrontUrl = (import.meta as any).env?.VITE_STOREFRONT_URL ?? 'http://localhost:4321';
 const client = new DesignerClient(apiBase);
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+let productId = UUID_RE.test(productFromUrl) ? productFromUrl : '';
+let productSlug = UUID_RE.test(productFromUrl) ? '' : productFromUrl;
 
 const toastEl = document.getElementById('toast') as HTMLElement;
 function toast(msg: string, kind: 'info' | 'success' | 'error' = 'info') {
@@ -152,29 +160,44 @@ function scheduleAutosave() {
   autosaveTimer = window.setTimeout(persistOnce, 1200);
 }
 
-// Product id resolution. Always async — saves wait for it.
-let cachedFallbackProductId: string | null = null;
+// Product resolution. Always async — saves wait for it.
+// Sources, in priority order:
+//   1. ?product=<uuid>  → already have id, fetch slug for the redirect
+//   2. ?product=<slug>  → fetch the product, derive id
+//   3. (nothing)        → take the first published product
 let resolvingProduct: Promise<string> | null = null;
 
 async function ensureProductId(): Promise<string> {
-  if (productId) return productId;
-  if (cachedFallbackProductId) return cachedFallbackProductId;
+  if (productId && productSlug) return productId;
   if (resolvingProduct) return resolvingProduct;
 
   resolvingProduct = (async () => {
-    const res = await fetch(`${apiBase}/products?per_page=1`);
-    const json = await res.json();
-    const list = json?.data?.data ?? [];
-    if (!list[0]?.id) throw new Error('No published products available — seed the catalogue first.');
-    cachedFallbackProductId = list[0].id as string;
+    let p = null;
+    if (productSlug) {
+      const res = await fetch(`${apiBase}/products/${encodeURIComponent(productSlug)}`);
+      if (res.ok) p = await res.json();
+    } else if (productId) {
+      // Have UUID, find slug from the catalogue.
+      const res = await fetch(`${apiBase}/products?per_page=200`);
+      const list = (await res.json())?.data?.data ?? [];
+      p = list.find((x) => x.id === productId) ?? null;
+    } else {
+      const res = await fetch(`${apiBase}/products?per_page=1`);
+      const list = (await res.json())?.data?.data ?? [];
+      p = list[0] ?? null;
+    }
+    if (!p?.id) throw new Error('No published product available.');
+
+    productId = p.id;
+    productSlug = p.slug;
 
     // Update the right-side product card from the catalogue.
-    document.getElementById('product-name')!.textContent = list[0].name;
-    document.getElementById('product-name-top')!.textContent = list[0].name;
+    document.getElementById('product-name')!.textContent = p.name;
+    document.getElementById('product-name-top')!.textContent = p.name;
     document.getElementById('product-meta')!.textContent =
-      list[0].description ? truncate(list[0].description, 70) : '85 × 55 mm · 350 gsm';
+      p.description ? truncate(p.description, 70) : '85 × 55 mm · 350 gsm';
 
-    return cachedFallbackProductId!;
+    return productId;
   })();
 
   return resolvingProduct;
@@ -258,15 +281,23 @@ document.getElementById('proof-confirm')!.addEventListener('click', async () => 
       console.log('Proof uploaded:', meta);
     }
     await client.approve(currentDesignId);
-    toast('Approved! Returning to product…', 'success');
+    toast('Approved! Taking you to the product page to finalise…', 'success');
+
+    // Make sure we have a slug for the redirect (resolve if user opened the
+    // designer with no ?product= or with a UUID).
+    await ensureProductId();
+    const slug = productSlug || 'business-card';
+    const target = `${storefrontUrl}/products/${encodeURIComponent(slug)}/?design=${encodeURIComponent(currentDesignId)}`;
+
     setTimeout(() => {
       if (window.opener) {
-        window.opener.postMessage({ type: 'design-approved', design_id: currentDesignId }, '*');
+        window.opener.postMessage({ type: 'design-approved', design_id: currentDesignId, redirect: target }, '*');
+        try { window.opener.location.href = target; } catch { /* cross-origin */ }
         window.close();
       } else {
-        window.location.href = '/';
+        window.location.href = target;
       }
-    }, 1500);
+    }, 900);
   } catch (e: any) {
     toast(`Approve failed: ${e?.message ?? e}`, 'error');
     btn.disabled = false;

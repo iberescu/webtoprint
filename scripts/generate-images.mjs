@@ -39,21 +39,24 @@ const STYLE = `Vistaprint-style professional product photography, ultra clean, s
 // Branding instruction — appended to product prompts so Gemini renders the
 // CloudLab wordmark + selected contact details ON the printed item itself.
 function brandingForProduct(opts) {
-  const { lines = [BRAND.website], logoStyle = 'small CLOUDLAB wordmark' } = opts;
+  const { lines = [BRAND.website], logoStyle = 'small CloudLab logo' } = opts;
   return `
-The printed item MUST display the CloudLab logo from the supplied reference
-image. Reproduce the logo as a 100% pixel-perfect copy — do NOT redraw it,
-do NOT change the typography, kerning, weight, or proportions, do NOT change
-the navy colour (${BRAND.navy}), do NOT translate or alter the letters in any
-way. Treat the logo as a placed graphic, only scaling and positioning it.
-Logo placement / scale: ${logoStyle}.
+CRITICAL — LOGO RULE:
+USE THE EXACT LOGO from the supplied reference image. MAKE NO CHANGES TO IT.
+No cloud icons, no symbols, no extra glyphs, no different fonts, no different
+weights, no different colour, no recoloring, no kerning adjustments, no
+recreating from imagination. Pixel-paste it like a sticker. Only scale it and
+position it. If you cannot render the logo cleanly at the chosen scale, leave
+a small empty navy rectangle as a placeholder rather than inventing one.
 
-Below or beside the logo, render these short text lines clearly and legibly
-in a clean Inter-style sans-serif, in the same navy or a neutral grey:
+Logo placement / scale on the product: ${logoStyle}.
+
+In addition to the logo, render these short text lines clearly and legibly
+in a clean Inter-style sans-serif, in navy (${BRAND.navy}) or neutral grey:
 ${lines.map((l) => `  - "${l}"`).join('\n')}
-The text MUST be spelled exactly as written above (case-sensitive). Do NOT
-add extra words, taglines, or filler text. Keep typography minimal and
-professional. If unsure, render less text rather than approximate spelling.`;
+The text MUST be spelled exactly as written above (case-sensitive, dots, dashes).
+Do NOT add taglines, slogans or extra words. If unsure of spelling, omit the
+text rather than approximate it.`;
 }
 
 // ---- Job definitions ------------------------------------------------------
@@ -62,8 +65,12 @@ const JOBS = [
   // Logo + chrome (no logo reference yet — these define it)
   { file: 'logo.png', prompt: `Minimalist flat logo for an online print shop called "PrintHub". Stylized indigo-purple letter "P" inside a rounded square tile, set against pure white background. Crisp vector look, no text. Square.` },
 
-  // Banners — atmospheric, no in-image text
-  { file: 'banners/hero.png', prompt: `Editorial lifestyle photograph: a graphic designer's hands (only hands visible, no face) at a clean white wooden desk arranging crisp blank white business cards in a fan, with a folded blank white brochure and a rolled blank poster nearby. A small green plant in the corner. Soft warm window light from the left, shallow depth of field. Subtle indigo accents on the brochure. NO TEXT, NO LETTERS, NO LOGOS, NO WRITING anywhere — every printed item is a plain blank coloured paper sample. Square 1:1 aspect ratio.` },
+  // Banners — atmospheric. Hero now carries the CloudLab brand subtly.
+  {
+    file: 'banners/hero.png',
+    useLogo: true,
+    prompt: `Editorial lifestyle photograph: a graphic designer's hands (only hands visible, no face) at a clean white wooden desk arranging crisp branded business cards and a folded brochure, with a rolled poster nearby. A small green plant in the corner. Soft warm window light from the left, shallow depth of field. Subtle indigo accents.\n\nThe printed items (business cards on top of the stack, the brochure cover) MUST carry the supplied CloudLab logo — USE THE EXACT LOGO from the reference image, MAKE NO CHANGES, no cloud icons, no extra glyphs, just the wordmark, pixel-pasted at a small scale. Do NOT render any other text or contact details on the materials. Square 1:1 aspect ratio. Hyper-realistic, magazine-quality.`,
+  },
   { file: 'banners/category-cards.png',      prompt: `${STYLE} A neat fan of premium business cards and folded greeting cards on a soft cream surface. No text on the cards. Slate-blue colour palette.` },
   { file: 'banners/category-marketing.png',  prompt: `${STYLE} A stack of glossy promotional flyers and a tri-fold brochure on a soft warm-white surface. Amber-orange palette. No text on the materials.` },
   { file: 'banners/category-stationery.png', prompt: `${STYLE} A composition of branded envelopes, a notepad and a sheet of letterhead on a marble desk. Neutral grey palette. No text.` },
