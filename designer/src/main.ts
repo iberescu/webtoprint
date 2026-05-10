@@ -126,9 +126,12 @@ async function persistOnce(): Promise<string | null> {
   const json = canvas.toJSON();
   try {
     if (!currentDesignId) {
-      const created = await client.createDesign(productId || resolveFallbackProductId(), json);
+      // ensureProductId is async (it may have to fetch the catalogue if the
+      // page was opened without ?product=…); awaiting here means save never
+      // races the boot fetch and "could not save" can't fire spuriously.
+      const pid = await ensureProductId();
+      const created = await client.createDesign(pid, json);
       currentDesignId = created.id;
-      // Don't push history.replaceState here — risk of triggering a reload during dev.
       saveIndicator.textContent = `All changes saved · #${currentDesignId.slice(0, 8)}`;
     } else {
       await client.updateDesign(currentDesignId, json);
@@ -149,31 +152,36 @@ function scheduleAutosave() {
   autosaveTimer = window.setTimeout(persistOnce, 1200);
 }
 
-// We need a product id even when the URL doesn't supply one (e.g. user opened
-// the designer directly from /designer without a product context). Look the
-// first published product up via the public API and remember it for the session.
+// Product id resolution. Always async — saves wait for it.
 let cachedFallbackProductId: string | null = null;
-function resolveFallbackProductId(): string {
+let resolvingProduct: Promise<string> | null = null;
+
+async function ensureProductId(): Promise<string> {
+  if (productId) return productId;
   if (cachedFallbackProductId) return cachedFallbackProductId;
-  // Synchronous-ish: fire and pray. Returning '' here means createDesign will
-  // 422 — we already pre-warm this on boot so by save time it's populated.
-  return cachedFallbackProductId ?? '';
-}
-(async () => {
-  if (productId) return;
-  try {
+  if (resolvingProduct) return resolvingProduct;
+
+  resolvingProduct = (async () => {
     const res = await fetch(`${apiBase}/products?per_page=1`);
-    const list = (await res.json())?.data?.data ?? [];
-    if (list[0]?.id) {
-      cachedFallbackProductId = list[0].id;
-      // Fill the right-side product card from the catalogue
-      document.getElementById('product-name')!.textContent = list[0].name;
-      document.getElementById('product-name-top')!.textContent = list[0].name;
-      document.getElementById('product-meta')!.textContent =
-        list[0].description ? truncate(list[0].description, 70) : '85 × 55 mm · 350 gsm';
-    }
-  } catch (e) { console.warn('Could not resolve fallback product:', e); }
-})();
+    const json = await res.json();
+    const list = json?.data?.data ?? [];
+    if (!list[0]?.id) throw new Error('No published products available — seed the catalogue first.');
+    cachedFallbackProductId = list[0].id as string;
+
+    // Update the right-side product card from the catalogue.
+    document.getElementById('product-name')!.textContent = list[0].name;
+    document.getElementById('product-name-top')!.textContent = list[0].name;
+    document.getElementById('product-meta')!.textContent =
+      list[0].description ? truncate(list[0].description, 70) : '85 × 55 mm · 350 gsm';
+
+    return cachedFallbackProductId!;
+  })();
+
+  return resolvingProduct;
+}
+
+// Pre-warm so the right-side product card populates without waiting for the first save.
+ensureProductId().catch((e) => console.warn('Pre-warm product id failed:', e));
 function truncate(s: string, n: number) { return s.length > n ? s.slice(0, n - 1) + '…' : s; }
 
 document.getElementById('save-draft')!.addEventListener('click', async () => {

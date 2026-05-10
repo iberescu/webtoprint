@@ -1,18 +1,7 @@
 import { useEffect, useState } from 'react';
 
-/**
- * GDPR-compliant cookie consent banner.
- *
- * Strict-by-default: until the user makes a choice, only essential cookies
- * (cart token, session) are allowed. Choice persisted in localStorage with
- * a 12-month expiry; bar reappears after that.
- *
- * The category booleans are exposed on `window.__consent` so analytics and
- * marketing scripts can opt-in based on the user's choice.
- */
-
 type Consent = {
-  essential: true; // always on
+  essential: true;
   analytics: boolean;
   marketing: boolean;
   decided_at: string;
@@ -65,20 +54,17 @@ export default function CookieConsent() {
       aria-describedby="cookie-desc"
       class="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white shadow-xl"
     >
-      <div class="mx-auto max-w-6xl px-4 py-4">
+      <div class="mx-auto max-w-7xl px-4 py-4">
         <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div class="flex-1">
-            <h2 id="cookie-title" class="text-base font-semibold text-slate-900">
+            <h2 id="cookie-title" class="text-base font-bold text-brand-900">
               We value your privacy
             </h2>
             <p id="cookie-desc" class="mt-1 text-sm text-slate-600">
               We use cookies to make this site work, to remember your basket, and — only if you let
               us — to understand how the site is used and to show you relevant content. You can
               change your choice anytime in our{' '}
-              <a href="/legal/cookies" class="font-medium text-indigo-600 underline">
-                cookie policy
-              </a>
-              .
+              <a href="/legal/cookies" class="font-medium text-brand-500 underline">cookie policy</a>.
             </p>
 
             {showDetails && (
@@ -99,7 +85,7 @@ export default function CookieConsent() {
                   />
                   <span>
                     <span class="block font-medium">Analytics</span>
-                    <span class="text-xs text-slate-500">Anonymous traffic stats (Plausible / GA-style).</span>
+                    <span class="text-xs text-slate-500">Anonymous traffic stats.</span>
                   </span>
                 </label>
                 <label class="flex items-start gap-2 cursor-pointer">
@@ -122,7 +108,7 @@ export default function CookieConsent() {
             <button
               type="button"
               onClick={() => persist(true, true)}
-              class="rounded bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+              class="rounded bg-brand-500 px-4 py-2 text-sm font-bold text-white hover:bg-brand-600"
             >
               Accept all
             </button>
@@ -137,7 +123,7 @@ export default function CookieConsent() {
               <button
                 type="button"
                 onClick={() => setShowDetails(true)}
-                class="text-sm font-medium text-indigo-600 hover:underline"
+                class="text-sm font-medium text-brand-500 hover:underline"
               >
                 Customize…
               </button>
@@ -145,7 +131,7 @@ export default function CookieConsent() {
               <button
                 type="button"
                 onClick={() => persist(analytics, marketing)}
-                class="rounded border border-indigo-600 px-4 py-2 text-sm font-semibold text-indigo-600 hover:bg-indigo-50"
+                class="rounded border border-brand-500 px-4 py-2 text-sm font-bold text-brand-500 hover:bg-brand-50"
               >
                 Save preferences
               </button>

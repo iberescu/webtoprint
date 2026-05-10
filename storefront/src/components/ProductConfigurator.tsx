@@ -95,7 +95,7 @@ export default function ProductConfigurator({ slug }: Props) {
                   class={[
                     'rounded-lg border px-3 py-2 text-sm transition',
                     isSelected
-                      ? 'border-indigo-600 bg-indigo-50 font-semibold text-indigo-700 ring-1 ring-indigo-600'
+                      ? 'border-brand-500 bg-brand-50 font-semibold text-brand-700 ring-1 ring-brand-500'
                       : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400',
                     isDisabled ? 'cursor-not-allowed opacity-40 line-through hover:border-slate-300' : '',
                   ].join(' ')}
@@ -115,14 +115,14 @@ export default function ProductConfigurator({ slug }: Props) {
         </div>
       )}
 
-      <div class="rounded-xl bg-slate-50 p-5">
+      <div class="rounded-xl bg-brand-50 p-5">
         {busy && <div class="text-sm text-slate-500">Updating price…</div>}
         {price?.valid ? (
           <>
             <div class="flex items-baseline justify-between">
               <div>
-                <div class="text-xs uppercase tracking-wide text-slate-500">Total ({qty} pieces)</div>
-                <div class="mt-1 text-3xl font-extrabold tracking-tight">
+                <div class="text-xs uppercase tracking-widest text-slate-500">Total ({qty} pieces)</div>
+                <div class="mt-1 text-3xl font-extrabold tracking-tight text-brand-900">
                   €{price.gross_price.toFixed(2)}
                 </div>
                 <div class="text-xs text-slate-500">
@@ -151,7 +151,7 @@ export default function ProductConfigurator({ slug }: Props) {
                 <li class="flex justify-between text-slate-600">
                   <span>VAT</span><span class="font-mono">€{price.tax.toFixed(2)}</span>
                 </li>
-                <li class="flex justify-between font-semibold text-slate-900">
+                <li class="flex justify-between font-semibold text-brand-900">
                   <span>Gross total</span><span class="font-mono">€{price.gross_price.toFixed(2)}</span>
                 </li>
               </ul>
@@ -167,7 +167,7 @@ export default function ProductConfigurator({ slug }: Props) {
           type="button"
           disabled={!validation?.valid || !price?.valid || adding}
           onClick={addToCart}
-          class="mt-5 w-full rounded-lg bg-amber-400 px-4 py-3 font-bold text-slate-900 transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-50"
+          class="mt-5 w-full rounded-lg bg-brand-500 px-4 py-3 font-bold text-white shadow-brand transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {adding ? 'Adding to cart…' : 'Add to cart →'}
         </button>

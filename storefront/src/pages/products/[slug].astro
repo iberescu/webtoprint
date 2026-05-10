@@ -23,22 +23,21 @@ export async function getStaticPaths() {
 const { product } = Astro.props as { product: Product };
 const { slug } = Astro.params;
 ---
-<BaseLayout title={`${product.name} — PrintHub`} description={product.description ?? undefined}>
+<BaseLayout title={`${product.name} — CloudLab Print`} description={product.description ?? undefined}>
   <div class="mx-auto max-w-7xl px-4 py-8">
     <nav class="text-sm text-slate-500">
-      <a href="/" class="hover:text-indigo-600">Home</a> <span class="mx-1">/</span>
-      <a href="/products" class="hover:text-indigo-600">Products</a>
+      <a href="/" class="hover:text-brand-500">Home</a> <span class="mx-1">/</span>
+      <a href="/products" class="hover:text-brand-500">Products</a>
       {product.category && (
-        <><span class="mx-1">/</span><a href={`/products?category=${product.category.slug}`} class="hover:text-indigo-600">{product.category.name}</a></>
+        <><span class="mx-1">/</span><a href={`/products?category=${product.category.slug}`} class="hover:text-brand-500">{product.category.name}</a></>
       )}
       <span class="mx-1">/</span>
       <span class="text-slate-700">{product.name}</span>
     </nav>
 
     <div class="mt-6 grid gap-10 lg:grid-cols-[1fr_1.1fr]">
-      <!-- Image gallery -->
       <div>
-        <div class="overflow-hidden rounded-3xl bg-slate-100 shadow-sm ring-1 ring-slate-200">
+        <div class="relative overflow-hidden rounded-3xl bg-slate-100 shadow-sm ring-1 ring-slate-200">
           <img
             src={`/images/products/${slug}.png`}
             alt={product.name}
@@ -46,9 +45,10 @@ const { slug } = Astro.params;
             width="800"
             height="800"
           />
+          <img src="/images/logo.svg" alt="" class="absolute right-5 top-5 h-5 w-auto opacity-80" aria-hidden="true" />
         </div>
         <div class="mt-3 grid grid-cols-4 gap-3">
-          <div class="overflow-hidden rounded-lg ring-2 ring-indigo-500">
+          <div class="overflow-hidden rounded-lg ring-2 ring-brand-500">
             <img src={`/images/products/${slug}.png`} alt="" class="aspect-square w-full object-cover" loading="lazy" width="160" height="160" />
           </div>
           <div class="overflow-hidden rounded-lg opacity-70 hover:opacity-100">
@@ -76,18 +76,17 @@ const { slug } = Astro.params;
         </div>
       </div>
 
-      <!-- Configurator -->
       <div>
-        <div class="flex items-center gap-2 text-xs uppercase tracking-wider text-slate-500">
+        <div class="flex items-center gap-2 text-xs uppercase tracking-widest text-slate-500">
           <span class="font-semibold">{product.category?.name}</span>
-          <span class="rounded-full bg-amber-100 px-2 py-0.5 font-bold text-amber-800">★ 4.7 (1 280)</span>
+          <span class="rounded-full bg-accent-400/20 px-2 py-0.5 font-bold text-accent-500">★ 4.7 (1 280)</span>
         </div>
-        <h1 class="mt-2 text-4xl font-extrabold tracking-tight text-slate-900">{product.name}</h1>
+        <h1 class="mt-2 text-4xl font-extrabold tracking-tight text-brand-900">{product.name}</h1>
         {product.description && <p class="mt-3 text-base leading-relaxed text-slate-600">{product.description}</p>}
 
         <div class="mt-4 flex flex-wrap items-center gap-2 text-sm">
           {product.requires_design && (
-            <span class="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-3 py-1 font-semibold text-indigo-700">
+            <span class="inline-flex items-center gap-1 rounded-full bg-brand-50 px-3 py-1 font-semibold text-brand-700">
               🎨 Design online — free
             </span>
           )}
@@ -96,7 +95,7 @@ const { slug } = Astro.params;
               📄 Upload your PDF
             </span>
           )}
-          <span class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-3 py-1 font-semibold text-amber-800">
+          <span class="inline-flex items-center gap-1 rounded-full bg-accent-400/15 px-3 py-1 font-semibold text-accent-500">
             ⚡ Express 24h
           </span>
         </div>

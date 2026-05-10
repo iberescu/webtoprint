@@ -1,25 +1,22 @@
 ---
 const year = new Date().getFullYear();
 ---
-<footer class="mt-20 border-t border-slate-200 bg-slate-900 text-slate-200">
-  <div class="mx-auto grid max-w-7xl gap-8 px-4 py-12 md:grid-cols-4">
+<footer class="mt-24 border-t border-slate-200 bg-brand-700 text-slate-200">
+  <div class="mx-auto grid max-w-7xl gap-10 px-4 py-14 md:grid-cols-4">
     <div>
-      <div class="flex items-center gap-2">
-        <img src="/images/logo.png" alt="PrintHub" class="h-9 w-9 rounded-lg" width="36" height="36" />
-        <span class="text-lg font-extrabold text-white">Print<span class="text-amber-400">Hub</span></span>
-      </div>
-      <p class="mt-3 text-sm text-slate-400">
-        Premium online printing with 24-hour production and free EU delivery from €99.
+      <img src="/images/logo.svg" alt="CloudLab Print" class="h-8 w-auto brightness-0 invert" height="32" />
+      <p class="mt-4 text-sm text-slate-300">
+        Premium online printing on the CloudLab platform. 24-hour production, free EU delivery from €99.
       </p>
       <div class="mt-4 flex gap-3 text-slate-400">
+        <a href="#" aria-label="LinkedIn" class="hover:text-white">in</a>
         <a href="#" aria-label="Twitter" class="hover:text-white">𝕏</a>
         <a href="#" aria-label="Instagram" class="hover:text-white">📷</a>
-        <a href="#" aria-label="LinkedIn" class="hover:text-white">in</a>
       </div>
     </div>
 
     <div>
-      <h3 class="mb-3 text-sm font-semibold uppercase tracking-wide text-white">Shop</h3>
+      <h3 class="mb-3 text-xs font-bold uppercase tracking-widest text-white/80">Shop</h3>
       <ul class="space-y-2 text-sm">
         <li><a href="/products" class="hover:text-white">All products</a></li>
         <li><a href="/products?category=cards" class="hover:text-white">Cards & Invites</a></li>
@@ -30,7 +27,7 @@ const year = new Date().getFullYear();
     </div>
 
     <div>
-      <h3 class="mb-3 text-sm font-semibold uppercase tracking-wide text-white">Help</h3>
+      <h3 class="mb-3 text-xs font-bold uppercase tracking-widest text-white/80">Help</h3>
       <ul class="space-y-2 text-sm">
         <li><a href="#" class="hover:text-white">Design help</a></li>
         <li><a href="#" class="hover:text-white">Delivery & shipping</a></li>
@@ -40,7 +37,7 @@ const year = new Date().getFullYear();
     </div>
 
     <div>
-      <h3 class="mb-3 text-sm font-semibold uppercase tracking-wide text-white">Legal</h3>
+      <h3 class="mb-3 text-xs font-bold uppercase tracking-widest text-white/80">Legal</h3>
       <ul class="space-y-2 text-sm">
         <li><a href="/legal/privacy" class="hover:text-white">Privacy policy</a></li>
         <li><a href="/legal/cookies" class="hover:text-white">Cookie policy</a></li>
@@ -51,7 +48,7 @@ const year = new Date().getFullYear();
     </div>
   </div>
 
-  <div class="border-t border-slate-800 px-4 py-4 text-center text-xs text-slate-500">
-    © {year} Demo Print GmbH · Berlin, Germany · VAT ID DE123456789 · Prices in EUR, VAT shown at checkout
+  <div class="border-t border-brand-600 px-4 py-4 text-center text-xs text-slate-400">
+    © {year} CloudLab Solutions · Berlin, Germany · VAT ID DE123456789 · Prices in EUR, VAT shown at checkout
   </div>
 </footer>
