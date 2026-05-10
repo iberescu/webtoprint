@@ -3,7 +3,26 @@
 FROM php:8.3-cli-alpine
 
 RUN apk add --no-cache git unzip icu-dev libzip-dev oniguruma-dev sqlite sqlite-dev linux-headers \
-    && docker-php-ext-install intl mbstring pdo_sqlite zip bcmath pcntl exif fileinfo
+    && docker-php-ext-install intl mbstring pdo_sqlite zip bcmath pcntl exif fileinfo opcache
+
+# Enable opcache for the CLI server — Laravel + Vanilo cold-boot is ~3 s
+# without it, ~150 ms with it. validate_timestamps=0 is critical here:
+# the app code is bind-mounted from Windows, and per-request stat() of
+# every PHP file goes through the Docker-Windows filesystem bridge,
+# which costs 10-30 s per request. Disabling timestamp validation drops
+# warm requests to ~5 ms. Trade-off: code changes don't auto-reload —
+# run `docker exec wtp-backend killall -USR2 php` (or restart the
+# container) after editing files.
+RUN { \
+        echo 'opcache.enable=1'; \
+        echo 'opcache.enable_cli=1'; \
+        echo 'opcache.memory_consumption=192'; \
+        echo 'opcache.max_accelerated_files=20000'; \
+        echo 'opcache.validate_timestamps=0'; \
+        echo 'opcache.revalidate_freq=0'; \
+        echo 'realpath_cache_size=4M'; \
+        echo 'realpath_cache_ttl=600'; \
+    } > /usr/local/etc/php/conf.d/opcache.ini
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 

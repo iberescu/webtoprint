@@ -5,6 +5,68 @@ Most-recent first.
 
 ---
 
+## 2026-05-11 — Cart 500 fix + dev-server 100× speedup
+
+### Add-to-cart was returning 500
+- `CartController::addItem` and `CheckoutController::placeOrder` were
+  declared with `int $cartId`, but the route uses `{cart}` so Laravel's
+  implicit binding hands you a `Vanilo\Cart\Models\Cart`. The type
+  mismatch threw before the body ever ran. Both signatures now take
+  `VaniloCart $cart` directly.
+- The price was being read as `$data['price_json']['gross']`, but the
+  storefront emits `gross_price` (see `PriceResult`). Falling through to
+  `0` meant cart totals were always `€0`. Fixed with
+  `gross_price ?? gross ?? 0`.
+- Vanilo's `cart_items` table has no `name` column — only `product_id`,
+  `product_type`, `quantity`, `price`. The previous response shape leaked
+  `name: null`. We now compute it on demand from the morphed product via
+  `$item->product->getName()`.
+
+### Why every request was 10-30s
+- The storefront, designer, and admin all felt unusable: a POST to
+  `/designer/designs` took **11-32 s**, even a flat GET took **10-30 s**.
+- DB benchmarks were fine (sub-millisecond). Programmatic kernel dispatch
+  was 3 s. So Laravel itself wasn't slow — only HTTP-served requests
+  were.
+- Root cause: **opcache `validate_timestamps=1` on a Docker-on-Windows
+  bind mount.** Every PHP request triggers a stat() on every cached file
+  to check mtimes. Through Docker Desktop's Windows ↔ Linux filesystem
+  bridge, those stats cost ~10× their normal price — and Laravel touches
+  thousands of files per request.
+- Fix in `docker/php/Dockerfile.test`: set `opcache.validate_timestamps=0`
+  and `revalidate_freq=0`. Trade-off: PHP edits don't auto-reload —
+  `docker exec wtp-backend killall php` (or `docker restart`) to pick
+  them up.
+
+### SQLite moved off the bind mount
+- The dev SQLite lived at `backend/storage/dev.sqlite` (bind-mounted from
+  Windows). Each migration write also took the Windows-FS hit, making
+  any DB-write endpoint slow.
+- Moved to **in-container** `/var/lib/wtp/dev.sqlite`. The container's
+  startup command now `mkdir`s the directory, `touch`es the file, runs
+  `migrate --force && db:seed --force`. The DB is ephemeral (gone on
+  container rm), which is fine for a dev seed — and ~50× faster for
+  writes.
+
+### Numbers (after warm-up; first hit per worker is still a cold compile)
+| Endpoint                                     | Before     | After   |
+|----------------------------------------------|------------|---------|
+| GET  /api/v1/products                        | 10-30 s    | ~0.2 s  |
+| POST /api/v1/designer/designs                | 11-32 s    | ~0.2 s  |
+| POST /api/v1/designer/designs/{id}/approve   | similar    | ~0.2 s  |
+| POST /api/v1/designer/designs/{id}/upload-print-pdf | similar | ~0.7 s |
+| POST /api/v1/storefront/cart/{id}/items      | 500        | ~0.2 s  |
+| POST /api/v1/storefront/checkout/{id}        | n/a        | ~1.5 s  |
+
+### Curl-verified end-to-end flow
+Cart → add item (name `"Flyer"`, total €37.49) → checkout → order
+`2026-000001` created. The storefront-shape call (`{"payment_method":
+"manual_invoice"}` with no addresses) is the one the React UI actually
+sends; the Vanilo `OrderFactory` correctly skips billpayer/shipping
+creation when those keys aren't present.
+
+---
+
 ## 2026-05-10 — Big content + design polish + designer rebuild
 
 ### Catalogue depth (14 products, Vistaprint-aligned EUR pricing)
@@ -150,12 +212,20 @@ Most-recent first.
 ## Restart cheatsheet
 
 ```bash
-# Backend
+# Backend — DB lives in-container at /var/lib/wtp/dev.sqlite (NOT on the
+# Windows bind mount: it's ~50× faster for SQLite writes). The container
+# touches the file, migrates and seeds on every boot. Opcache has
+# validate_timestamps=0 (see Dockerfile.test), so PHP file edits won't
+# auto-reload — restart the container or `docker exec wtp-backend
+# killall php` to pick them up.
 docker rm -f wtp-backend
 docker run -d --name wtp-backend --network webtoprint-dev \
   -v "$PWD:/app" -w /app/backend -p 8000:8000 \
   -e PHP_CLI_SERVER_WORKERS=8 webtoprint-test \
-  sh -c 'touch storage/dev.sqlite && PHP_CLI_SERVER_WORKERS=8 php -S 0.0.0.0:8000 -t public public/index.php'
+  sh -c 'mkdir -p /var/lib/wtp && touch /var/lib/wtp/dev.sqlite \
+    && php artisan config:cache && php artisan route:cache \
+    && php artisan migrate --force && php artisan db:seed --force \
+    && PHP_CLI_SERVER_WORKERS=8 php -S 0.0.0.0:8000 -t public public/index.php'
 
 # Storefront (production)
 cd storefront && npx astro build

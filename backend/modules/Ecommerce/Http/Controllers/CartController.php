@@ -24,13 +24,15 @@ class CartController extends Controller
         return response()->json($this->toArray($cart), 201);
     }
 
-    public function show(int $cartId): JsonResponse
+    // Laravel resolves {cart} (typed VaniloCart) via implicit model binding.
+    // Previously we declared int $cartId, which produced a 500 type mismatch.
+    public function show(VaniloCart $cart): JsonResponse
     {
-        $cart = VaniloCart::query()->with('items.product')->findOrFail($cartId);
+        $cart->load('items.product');
         return response()->json($this->toArray($cart));
     }
 
-    public function addItem(Request $request, int $cartId): JsonResponse
+    public function addItem(Request $request, VaniloCart $cart): JsonResponse
     {
         $data = $request->validate([
             'product_id' => 'required|uuid|exists:products,id',
@@ -40,12 +42,13 @@ class CartController extends Controller
             'quantity' => 'required|integer|min:1',
         ]);
 
-        /** @var VaniloCart $cart */
-        $cart = VaniloCart::query()->findOrFail($cartId);
-
         /** @var Product $product */
         $product = Product::query()->findOrFail($data['product_id']);
-        $unit = (float) ($data['price_json']['gross'] ?? 0) / max(1, (int) $data['quantity']);
+
+        // The price endpoint returns `gross_price`; previous code read `gross`
+        // and silently fell through to 0.
+        $gross = (float) ($data['price_json']['gross_price'] ?? $data['price_json']['gross'] ?? 0);
+        $unit = $gross / max(1, (int) $data['quantity']);
         $product->priceOverride($unit);
 
         $item = $cart->addItem($product, $data['quantity'], [
@@ -58,13 +61,17 @@ class CartController extends Controller
             ],
         ]);
 
+        // Vanilo's cart_items table has no `name` column, so the row's name
+        // attribute will always be null. Eager-load the morph relation so
+        // itemToArray can derive the name from the product.
+        $item->load('product');
+
         return response()->json($this->itemToArray($item), 201);
     }
 
-    public function removeItem(int $cartId, int $itemId): JsonResponse
+    public function removeItem(VaniloCart $cart, int $item): JsonResponse
     {
-        $cart = VaniloCart::query()->findOrFail($cartId);
-        $cart->items()->where('id', $itemId)->delete();
+        $cart->items()->where('id', $item)->delete();
         return response()->json(null, 204);
     }
 
@@ -83,11 +90,18 @@ class CartController extends Controller
 
     private function itemToArray(VaniloCartItem $item): array
     {
+        // Vanilo's cart_items has no name column. Derive it from the morphed
+        // product (the model implements Buyable::getName).
+        $product = $item->product;
+        $name = $product && method_exists($product, 'getName')
+            ? $product->getName()
+            : ($product?->name ?? 'Item');
+
         return [
             'id' => $item->id,
             'product_id' => $item->product_id,
             'product_type' => $item->product_type,
-            'name' => $item->name,
+            'name' => $name,
             'quantity' => $item->quantity,
             'unit_price' => $item->price,
             'total' => $item->total(),

@@ -14,10 +14,9 @@ class CheckoutController extends Controller
     {
     }
 
-    public function placeOrder(Request $request, int $cartId): JsonResponse
+    public function placeOrder(Request $request, VaniloCart $cart): JsonResponse
     {
-        /** @var VaniloCart $cart */
-        $cart = VaniloCart::query()->with('items.product')->findOrFail($cartId);
+        $cart->load('items.product');
 
         if ($cart->items->isEmpty()) {
             return response()->json(['message' => 'Cart is empty.', 'errors' => []], 422);
