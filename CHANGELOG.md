@@ -58,12 +58,29 @@ Most-recent first.
 | POST /api/v1/storefront/cart/{id}/items      | 500        | ~0.2 s  |
 | POST /api/v1/storefront/checkout/{id}        | n/a        | ~1.5 s  |
 
+### Checkout: flat → Vanilo address translation
+- Follow-up after re-testing: passing the storefront's flat address
+  (`{name, email, line1, city, postalcode, country_code}`) into Vanilo's
+  `OrderFactory` blew up with `Undefined array key "address"` from
+  `OrderFactory::createBillpayer` at line 95 — Vanilo expects the
+  billpayer to be `{firstname, lastname, email, address: {...}}` with a
+  *nested* address sub-array, and addresses themselves to use
+  `country_id` + `address` (street) rather than `country_code` + `line1`.
+- New private helpers `toVaniloAddress()` and `toVaniloBillpayer()` in
+  `PlaceOrder` do the translation. The `name` field gets split on
+  whitespace into firstname/lastname (with a `-` fallback for the
+  surname, matching Vanilo's "empty becomes -" convention).
+- Isolating the shape mapping inside `PlaceOrder` keeps the boundary
+  rule intact: when we swap Vanilo for Shopify/Magento, only this file
+  changes — the storefront, controllers, and PIM/Pricing/Designer
+  modules keep using the flat shape.
+
 ### Curl-verified end-to-end flow
 Cart → add item (name `"Flyer"`, total €37.49) → checkout → order
-`2026-000001` created. The storefront-shape call (`{"payment_method":
-"manual_invoice"}` with no addresses) is the one the React UI actually
-sends; the Vanilo `OrderFactory` correctly skips billpayer/shipping
-creation when those keys aren't present.
+created. The address-less variant (`{"payment_method": "manual_invoice"}`)
+is also accepted: when `shipping_address`/`billing_address` are absent,
+the helpers return `null`, `array_filter` drops the keys, and Vanilo
+correctly skips billpayer/shipping creation.
 
 ---
 

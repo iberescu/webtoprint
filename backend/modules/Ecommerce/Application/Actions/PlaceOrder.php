@@ -43,8 +43,8 @@ class PlaceOrder
                 array_filter([
                     'number' => $this->nextOrderNumber(),
                     'user_id' => $cart->user_id,
-                    'shippingAddress' => $shipping,
-                    'billpayer' => $billing,
+                    'shippingAddress' => $this->toVaniloAddress($shipping),
+                    'billpayer' => $this->toVaniloBillpayer($billing),
                     ...$extra,
                 ], fn ($v) => $v !== null),
                 $items,
@@ -54,6 +54,42 @@ class PlaceOrder
 
             return $order;
         });
+    }
+
+    /**
+     * The storefront sends flat addresses ({name, email, line1, city,
+     * postalcode, country_code}). Vanilo's OrderFactory expects its own
+     * address shape with `country_id` + `address` (street). This is the
+     * translation, isolated here so swapping Vanilo out only requires
+     * touching this file.
+     */
+    private function toVaniloAddress(?array $a): ?array
+    {
+        if (!$a) return null;
+        return array_filter([
+            'name' => $a['name'] ?? null,
+            'address' => $a['line1'] ?? $a['address'] ?? null,
+            'city' => $a['city'] ?? null,
+            'postalcode' => $a['postalcode'] ?? $a['postal_code'] ?? null,
+            'country_id' => $a['country_code'] ?? $a['country_id'] ?? null,
+        ], fn ($v) => $v !== null);
+    }
+
+    /**
+     * Vanilo's billpayer wants {firstname, lastname, email, address: {...}}.
+     * We accept the same flat shape as `toVaniloAddress` and split the
+     * "name" field on first whitespace.
+     */
+    private function toVaniloBillpayer(?array $b): ?array
+    {
+        if (!$b) return null;
+        $parts = preg_split('/\s+/', trim((string)($b['name'] ?? '')), 2) ?: [];
+        return array_filter([
+            'firstname' => $parts[0] ?? null,
+            'lastname' => $parts[1] ?? '-',
+            'email' => $b['email'] ?? null,
+            'address' => $this->toVaniloAddress($b),
+        ], fn ($v) => $v !== null);
     }
 
     /**
