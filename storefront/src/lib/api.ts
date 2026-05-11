@@ -2,9 +2,14 @@
  * Tiny typed API client for the storefront. All Astro pages and React islands
  * use this — never call fetch directly.
  *
+ * After the print/shop split:
+ *  - PRINT_API_URL  (default 8000) — catalogue, configurator, pricing, designer
+ *  - SHOP_API_URL   (default 8001) — cart, checkout, customer auth, orders
+ *
  * Endpoints map 1:1 to the spec §14 REST shape.
  */
-const BASE = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8000/api/v1';
+const PRINT_BASE = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8000/api/v1';
+const SHOP_BASE = import.meta.env.PUBLIC_SHOP_API_URL ?? 'http://localhost:8001/api/v1';
 
 export class ApiError extends Error {
   constructor(public status: number, public payload: unknown, message: string) {
@@ -12,8 +17,8 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
+async function call<T>(base: string, path: string, init: RequestInit = {}): Promise<T> {
+  const res = await fetch(`${base}${path}`, {
     ...init,
     headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', ...(init.headers ?? {}) },
   });
@@ -26,32 +31,35 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return (await res.json()) as T;
 }
 
+const print = <T>(path: string, init?: RequestInit) => call<T>(PRINT_BASE, path, init);
+const shop = <T>(path: string, init?: RequestInit) => call<T>(SHOP_BASE, path, init);
+
 export const api = {
   products: {
     list: (params: Record<string, string> = {}) =>
-      request<{ data: { data: Product[] } }>(`/products?${new URLSearchParams(params)}`),
-    show: (slug: string) => request<Product>(`/products/${slug}`),
-    configurator: (slug: string) => request<ConfiguratorPayload>(`/products/${slug}/configurator`),
+      print<{ data: { data: Product[] } }>(`/products?${new URLSearchParams(params)}`),
+    show: (slug: string) => print<Product>(`/products/${slug}`),
+    configurator: (slug: string) => print<ConfiguratorPayload>(`/products/${slug}/configurator`),
     validate: (slug: string, configuration: Record<string, string>) =>
-      request<ValidationResult>(`/products/${slug}/validate`, {
+      print<ValidationResult>(`/products/${slug}/validate`, {
         method: 'POST', body: JSON.stringify({ configuration }),
       }),
     price: (slug: string, configuration: Record<string, string | number>) =>
-      request<PriceResult>(`/products/${slug}/price`, {
+      print<PriceResult>(`/products/${slug}/price`, {
         method: 'POST', body: JSON.stringify({ configuration }),
       }),
   },
   cart: {
-    create: () => request<CartResponse>(`/storefront/cart`, { method: 'POST', body: '{}' }),
-    show: (id: number | string) => request<CartResponse>(`/storefront/cart/${id}`),
+    create: () => shop<CartResponse>(`/storefront/cart`, { method: 'POST', body: '{}' }),
+    show: (id: number | string) => shop<CartResponse>(`/storefront/cart/${id}`),
     addItem: (id: number | string, item: NewCartItem) =>
-      request<unknown>(`/storefront/cart/${id}/items`, {
+      shop<unknown>(`/storefront/cart/${id}/items`, {
         method: 'POST', body: JSON.stringify(item),
       }),
   },
   checkout: {
     place: (id: number | string, body: PlaceOrderBody) =>
-      request<unknown>(`/storefront/checkout/${id}`, {
+      shop<unknown>(`/storefront/checkout/${id}`, {
         method: 'POST', body: JSON.stringify(body),
       }),
   },

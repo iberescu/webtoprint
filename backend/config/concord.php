@@ -1,22 +1,14 @@
 <?php
 
 /**
- * Vanilo modules used by the platform's Ecommerce adapter.
+ * Concord modules — none on the print backend after the print/shop split.
  *
- * If you swap Vanilo for Shopify/Magento, drop this file (or comment all out)
- * and disable the EcommerceServiceProvider — the print-domain modules don't
- * depend on any of these.
+ * Ecommerce (Vanilo) now lives in backend-shop, which has its own concord.php
+ * registering Cart, Order, Checkout, Payment, Address modules. Print talks to
+ * shop via the InternalBridge module (/api/v1/internal/*) and never imports
+ * Vanilo classes directly.
  */
 return [
-    'modules' => [
-        // Only the modules we actually use. Foundation, Properties, MasterProduct
-        // ship Vanilo's own Product / MasterProduct schema which would clash
-        // with PIM's products table.
-        Konekt\Address\Providers\ModuleServiceProvider::class,
-        Vanilo\Cart\Providers\ModuleServiceProvider::class,
-        Vanilo\Order\Providers\ModuleServiceProvider::class,
-        Vanilo\Checkout\Providers\ModuleServiceProvider::class,
-        Vanilo\Payment\Providers\ModuleServiceProvider::class,
-    ],
-    'register_route_models' => true,
+    'modules' => [],
+    'register_route_models' => false,
 ];

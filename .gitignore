@@ -34,3 +34,9 @@ Thumbs.db
 *.swp
 
 .claude/
+
+# Laravel's auto-generated services cache (per app). The hand-curated
+# packages.php in backend-shop/ IS tracked — see CHANGELOG split entry.
+backend-shop/bootstrap/cache/services.php
+backend-shop/bootstrap/cache/config.php
+backend-shop/bootstrap/cache/routes-v7.php

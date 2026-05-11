@@ -1,0 +1,16 @@
+#!/usr/bin/env php
+<?php
+
+use Symfony\Component\Console\Input\ArgvInput;
+
+define('LARAVEL_START', microtime(true));
+
+// Reuse the print backend's installed vendor.
+$autoload = require __DIR__ . '/../backend/vendor/autoload.php';
+$autoload->addPsr4('Shop\\', __DIR__ . '/app/');
+
+$app = require_once __DIR__ . '/bootstrap/app.php';
+
+$status = $app->handleCommand(new ArgvInput);
+
+exit($status);

@@ -36,7 +36,6 @@ class AdminPanelProvider extends PanelProvider
             ->discoverResources(in: base_path('modules/PIM/Filament/Resources'), for: 'Modules\\PIM\\Filament\\Resources')
             ->discoverResources(in: base_path('modules/Pricing/Filament/Resources'), for: 'Modules\\Pricing\\Filament\\Resources')
             ->discoverResources(in: base_path('modules/Designer/Filament/Resources'), for: 'Modules\\Designer\\Filament\\Resources')
-            ->discoverResources(in: base_path('modules/Ecommerce/Filament/Resources'), for: 'Modules\\Ecommerce\\Filament\\Resources')
             ->discoverResources(in: base_path('modules/Distribution/Filament/Resources'), for: 'Modules\\Distribution\\Filament\\Resources')
             ->discoverResources(in: base_path('modules/Templates/Filament/Resources'), for: 'Modules\\Templates\\Filament\\Resources')
             ->discoverResources(in: base_path('modules/Settings/Filament/Resources'), for: 'Modules\\Settings\\Filament\\Resources')

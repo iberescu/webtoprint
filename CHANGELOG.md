@@ -5,6 +5,106 @@ Most-recent first.
 
 ---
 
+## 2026-05-11 (afternoon) — Print/shop service split
+
+### Two Laravel apps, talking over HTTP
+- The repo now ships **two** independently-bootable Laravel applications:
+  - `backend/` — the **print** backend (PIM, Pricing, Designer, Distribution,
+    Templates, FileStorage, Auth, Settings, Core, InternalBridge). No Vanilo,
+    no carts, no orders.
+  - `backend-shop/` — the **shop** backend (Vanilo cart/order/checkout/payment,
+    customer auth, a `Shop\` namespace, its own SQLite DB at
+    `/var/lib/wtp-shop/dev.sqlite`).
+- Shop reuses backend's installed `vendor/` via a path reference in
+  `composer.json` plus a runtime `addPsr4('Shop\\', …)` call — so we don't
+  need a duplicate composer install in dev.
+- We initially tried sharing the `App\` namespace; backend's optimised
+  classmap statically pins `App\Providers\AppServiceProvider` to
+  `backend/app/...`, and PSR-4 prepending can't override the static map.
+  Renaming shop to `Shop\` fixed that cleanly.
+- A hand-curated `backend-shop/bootstrap/cache/packages.php` registers only
+  what shop needs (Concord, Vanilo modules, Sanctum, migration-compatibility).
+  Filament, Pest, l5-swagger etc. stay out — they'd crash on the smaller
+  install and aren't relevant for shop.
+
+### Boundary contract — new `InternalBridge` module on print
+- `Modules\InternalBridge` exposes three endpoints under `/api/v1/internal/`,
+  each gated by the shared bearer token `INTERNAL_BRIDGE_TOKEN`:
+  - `GET  /internal/products/{id}`            — product + optional snapshot
+  - `GET  /internal/designs/{id}/preflight`   — preflight status + PDF id
+  - `POST /internal/production-jobs/batch`    — accept a batch of
+                                                ProductionJobInput-shaped jobs
+- Auth via `VerifyInternalToken` middleware. Backend-to-backend trust on
+  the private Docker network for now; HMAC / mTLS is the natural next step.
+
+### Shop's `PrintApi` is the only place that knows print exists
+- `Shop\Services\PrintApi` wraps the three endpoints with typed methods:
+  - `resolveProduct($id)` — fetches a product from print and upserts into
+    a local `products_cache` table. Vanilo's cart-item morph needs an
+    Eloquent row to point at; the cache row is exactly that. Print stays
+    the source of truth.
+  - `designPreflight($id)` — checkout-time preflight gate, replacing the
+    in-process `Modules\Designer\Domain\Models\Design` lookup.
+  - `createProductionJobs($jobs)` — batch POST replacing the in-process
+    `HandOffOrderToDistribution` listener.
+- `Shop\Listeners\HandOffOrderToPrint` is the only thing in shop that calls
+  `PrintApi::createProductionJobs`. The wire shape is identical to the old
+  `ProductionJobInput` DTO so swapping shop out for Shopify/Magento later
+  is purely an HTTP-client swap.
+
+### Idempotent production-job creation
+- The first integration test exposed a real bug: when shop's transaction
+  rolled back after Vanilo blew up on the address, the print backend had
+  already persisted the production job (HTTP calls aren't inside shop's
+  transaction). Retrying then collided with the `job_number` UNIQUE
+  constraint.
+- `CreateProductionJob::execute` now `firstOrNew`-s on `job_number` and
+  saves. Idempotent retries are correct — the same `(source,
+  external_order_ref, external_order_item_ref)` triple always maps to one
+  row. Good architecture in its own right.
+
+### Storefront aware of the split
+- `storefront/src/lib/api.ts` now reads two base URLs:
+  - `PUBLIC_API_URL`      → print (catalogue, configurator, pricing, designer)
+  - `PUBLIC_SHOP_API_URL` → shop  (cart, checkout, customer auth)
+- All `api.cart.*` and `api.checkout.*` calls go to shop on port 8001.
+- All `api.products.*` calls still go to print on port 8000.
+
+### Curl-verified flow
+```
+POST :8001/api/v1/storefront/cart                    → {id:5}
+POST :8001/api/v1/storefront/cart/5/items            → shop fetches product
+                                                       from :8000/internal/...,
+                                                       upserts into
+                                                       products_cache,
+                                                       returns line item
+POST :8001/api/v1/storefront/checkout/5              → shop creates Vanilo
+                                                       order #2026-000001,
+                                                       fires OrderPlaced,
+                                                       listener POSTs to
+                                                       :8000/internal/
+                                                       production-jobs/batch
+                                                       → print creates
+                                                       SHOP-VANILO-2026-
+                                                       000001-1, status=ready
+```
+
+### Other deltas
+- `backend/.archive/Ecommerce/` — the old in-process Ecommerce module,
+  kept on disk for reference. Removed from auto-discovery by moving it
+  out of `backend/modules/`.
+- `backend/config/concord.php` — empty modules list; Vanilo no longer
+  loads on print.
+- `backend/config/auth.php` — drop the `customer` guard and `customers`
+  provider. Print authenticates only Filament admins now.
+- `backend/app/Providers/Filament/AdminPanelProvider.php` — stopped
+  discovering Filament resources under `modules/Ecommerce/`.
+- The admin OrderResource is gone for now. Restoring an admin view of
+  orders is a TODO — most likely via a Filament page that fetches from
+  shop's `/api/v1/admin/orders` over HTTP.
+
+---
+
 ## 2026-05-11 — Cart 500 fix + dev-server 100× speedup
 
 ### Add-to-cart was returning 500
@@ -223,18 +323,19 @@ correctly skips billpayer/shipping creation.
 | Storefront (production build) | http://localhost:4321 | nginx-served static |
 | Online designer (Canva-style) | http://localhost:5173 | Vite dev server |
 | Admin panel | http://localhost:8000/admin/login | `admin@example.com` / `password` |
-| Backend API | http://localhost:8000/api/v1 | `php -S` with 8 workers |
+| Print API | http://localhost:8000/api/v1 | products, designer, distribution |
+| Shop API | http://localhost:8001/api/v1 | cart, checkout, customer auth |
 | MinIO console | http://localhost:9001 | `webtoprint` / `webtoprint-secret` |
 
 ## Restart cheatsheet
 
 ```bash
-# Backend — DB lives in-container at /var/lib/wtp/dev.sqlite (NOT on the
-# Windows bind mount: it's ~50× faster for SQLite writes). The container
-# touches the file, migrates and seeds on every boot. Opcache has
+# Print backend (port 8000) — DB lives in-container at /var/lib/wtp/dev.sqlite
+# (NOT on the Windows bind mount: it's ~50× faster for SQLite writes). The
+# container touches the file, migrates and seeds on every boot. Opcache has
 # validate_timestamps=0 (see Dockerfile.test), so PHP file edits won't
-# auto-reload — restart the container or `docker exec wtp-backend
-# killall php` to pick them up.
+# auto-reload — restart the container or `docker exec wtp-backend killall php`
+# to pick them up.
 docker rm -f wtp-backend
 docker run -d --name wtp-backend --network webtoprint-dev \
   -v "$PWD:/app" -w /app/backend -p 8000:8000 \
@@ -242,6 +343,21 @@ docker run -d --name wtp-backend --network webtoprint-dev \
   sh -c 'mkdir -p /var/lib/wtp && touch /var/lib/wtp/dev.sqlite \
     && php artisan config:cache && php artisan route:cache \
     && php artisan migrate --force && php artisan db:seed --force \
+    && PHP_CLI_SERVER_WORKERS=8 php -S 0.0.0.0:8000 -t public public/index.php'
+
+# Shop backend (port 8001) — separate SQLite at /var/lib/wtp-shop/dev.sqlite.
+# Shares the print backend's vendor/ via a path reference in composer.json
+# plus a runtime addPsr4 in public/index.php — no separate composer install
+# needed in dev. Talks to wtp-backend over the internal Docker network
+# (PRINT_API_URL=http://wtp-backend:8000/api/v1) using the shared
+# INTERNAL_BRIDGE_TOKEN.
+docker rm -f wtp-shop
+docker run -d --name wtp-shop --network webtoprint-dev \
+  -v "$PWD:/app" -w /app/backend-shop -p 8001:8000 \
+  -e PHP_CLI_SERVER_WORKERS=8 webtoprint-test \
+  sh -c 'mkdir -p /var/lib/wtp-shop && touch /var/lib/wtp-shop/dev.sqlite \
+    && rm -f bootstrap/cache/config.php bootstrap/cache/routes-v7.php bootstrap/cache/services.php \
+    && php artisan migrate --force \
     && PHP_CLI_SERVER_WORKERS=8 php -S 0.0.0.0:8000 -t public public/index.php'
 
 # Storefront (production)

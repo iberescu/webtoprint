@@ -11,15 +11,26 @@ See [`CHANGELOG.md`](CHANGELOG.md) for a running history of what got built, why,
 ## Layout
 
 ```
-backend/      Laravel API + modular domain (PIM, Pricing, Designer, …)
-storefront/   Astro static site with React islands
-designer/     Fabric.js online designer (Vite + TS)
-packages/     Shared libs (types, api-client, pdf-tools)
-custom/       Per-customer overrides (pricing, templates, themes, …)
-docker/       Service Dockerfiles + configs
-deployment/   Production deployment helpers
-docs/         Specs and architecture notes
+backend/        Print Laravel API — PIM, Pricing, Designer, Distribution, …
+                (port 8000)
+backend-shop/   Shop Laravel API — Vanilo cart/order/checkout/customer auth
+                (port 8001). Talks to backend over HTTP via
+                /api/v1/internal/* and a shared bearer token.
+storefront/     Astro static site with React islands.
+designer/       Fabric.js online designer (Vite + TS).
+packages/       Shared libs (types, api-client, pdf-tools).
+custom/         Per-customer overrides (pricing, templates, themes, …).
+docker/         Service Dockerfiles + configs.
+deployment/     Production deployment helpers.
+docs/           Specs and architecture notes.
 ```
+
+The print and shop apps are deployable independently. Shop reuses backend's
+installed `vendor/` in dev (cheap path reference) but its own `Shop\`
+namespace, own SQLite DB, own bootstrap. Swapping Vanilo for Shopify or
+Magento means replacing backend-shop with a different adapter — the print
+backend never imports Vanilo classes. See [CHANGELOG.md](CHANGELOG.md)
+under "Print/shop service split" for the boundary contract.
 
 ## Quick start (development)
 
@@ -49,7 +60,11 @@ Each backend module is independent — its own service provider, migrations, rou
 | Distribution | Production jobs, jobsheet/MXML/JDF/package | Core, FileStorage |
 | Templates | Editable Blade/Twig templates for distribution | Core |
 | Integrations | Stripe, PayPal, callas pdfToolbox drivers | Core, FileStorage |
-| Ecommerce | Vanilo-based cart/order/checkout adapter | All print-domain modules |
+| InternalBridge | Token-gated `/api/v1/internal/*` API for the shop service | PIM, Designer, Distribution |
+
+The ecommerce adapter (Vanilo cart/order/checkout) lives in **backend-shop/**
+as a separate Laravel app — see [CHANGELOG.md](CHANGELOG.md) for the split
+rationale and the boundary contract.
 
 ### Boundary rule
 

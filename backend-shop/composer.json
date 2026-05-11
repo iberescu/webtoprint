@@ -1,0 +1,15 @@
+{
+    "name": "webtoprint/shop",
+    "type": "project",
+    "description": "Web-to-Print shop service (Vanilo cart/checkout). Talks to backend over HTTP.",
+    "license": "proprietary",
+    "require": {},
+    "autoload": {
+        "psr-4": {
+            "Shop\\": "app/"
+        }
+    },
+    "config": {
+        "vendor-dir": "../backend/vendor"
+    }
+}

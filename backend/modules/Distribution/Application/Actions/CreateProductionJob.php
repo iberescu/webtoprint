@@ -17,11 +17,17 @@ class CreateProductionJob
 {
     public function execute(ProductionJobInput $input): ProductionJob
     {
-        $job = ProductionJob::query()->create([
+        // Idempotent on job_number — retries (incl. when an upstream service
+        // re-posts after a partial failure) update the existing row instead
+        // of colliding with the UNIQUE constraint.
+        $jobNumber = $this->buildJobNumber($input);
+        $existing = ProductionJob::query()->where('job_number', $jobNumber)->first();
+        $job = $existing ?? new ProductionJob();
+        $job->fill([
             'external_order_ref' => $input->externalOrderRef,
             'external_order_item_ref' => $input->externalOrderItemRef,
             'source' => $input->source,
-            'job_number' => $this->buildJobNumber($input),
+            'job_number' => $jobNumber,
             'product_name' => $input->productName,
             'configuration_snapshot_json' => [
                 'product' => $input->productSnapshot,
@@ -32,9 +38,9 @@ class CreateProductionJob
                 'billing_address' => $input->billingAddress,
             ],
             'artwork_file_id' => $input->artworkFileId,
-            'status' => 'pending',
+            'status' => $existing?->status ?? 'pending',
             'metadata_json' => $input->metadata,
-        ]);
+        ])->save();
 
         ProductionJobCreated::dispatch($job);
 

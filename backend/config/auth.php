@@ -15,20 +15,12 @@ return [
             'driver' => 'sanctum',
             'provider' => 'admins',
         ],
-        'customer' => [
-            'driver' => 'session',
-            'provider' => 'customers',
-        ],
     ],
 
     'providers' => [
         'admins' => [
             'driver' => 'eloquent',
             'model' => Modules\Auth\Domain\Models\AdminUser::class,
-        ],
-        'customers' => [
-            'driver' => 'eloquent',
-            'model' => Modules\Ecommerce\Domain\Models\Customer::class,
         ],
     ],
 
