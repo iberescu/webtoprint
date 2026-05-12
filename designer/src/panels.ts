@@ -14,10 +14,21 @@ import { Canvas, FabricImage, IText, Rect, Circle, Triangle } from 'fabric';
  */
 export type PanelKind = 'templates' | 'text' | 'uploads' | 'shapes' | 'colors' | 'qr';
 
-/** Set once the bootstrapping product is resolved (see main.ts). */
+/**
+ * Set once the bootstrapping product is resolved (see main.ts).
+ * Anyone waiting via `whenProductIdReady()` (the templates panel) is woken up.
+ */
 let CURRENT_PRODUCT_ID: string | null = null;
+let pendingResolvers: Array<(id: string) => void> = [];
 export function setProductIdForTemplates(id: string) {
   CURRENT_PRODUCT_ID = id;
+  const drain = pendingResolvers;
+  pendingResolvers = [];
+  drain.forEach((r) => r(id));
+}
+function whenProductIdReady(): Promise<string> {
+  if (CURRENT_PRODUCT_ID) return Promise.resolve(CURRENT_PRODUCT_ID);
+  return new Promise<string>((resolve) => pendingResolvers.push(resolve));
 }
 
 type ApiTemplate = {
@@ -115,7 +126,7 @@ export function renderPanel(panelEl: HTMLElement, kind: PanelKind, canvas: Canva
   }
 }
 
-function renderTemplates(panel: HTMLElement, canvas: Canvas) {
+async function renderTemplates(panel: HTMLElement, canvas: Canvas) {
   panel.innerHTML = `
     <h2 class="section-title">Templates</h2>
     <p style="margin: 0 0 12px; font-size: 12px; color: var(--muted)">Click a template to start. You can edit every element afterwards.</p>
@@ -123,39 +134,48 @@ function renderTemplates(panel: HTMLElement, canvas: Canvas) {
       <div class="empty-state" style="grid-column: 1 / -1;">Loading templates…</div>
     </div>
   `;
-  const grid = panel.querySelector('#templates-grid')!;
+  const grid = panel.querySelector<HTMLElement>('#templates-grid')!;
 
-  fetchTemplates(CURRENT_PRODUCT_ID).then((apiTemplates) => {
-    grid.innerHTML = '';
-    if (apiTemplates.length > 0) {
-      apiTemplates.forEach((tpl) => {
-        const card = document.createElement('div');
-        card.className = 'template-card';
-        card.title = tpl.name;
-        card.innerHTML = templateCardHtml(tpl);
-        card.onclick = () => applySeededTemplate(canvas, tpl);
-        grid.appendChild(card);
-      });
-      return;
-    }
+  // Block on the product ID. If the user clicked Templates before
+  // main.ts finished its `ensureProductId()` pre-warm, this resolves
+  // the moment that pre-warm completes — the panel stays on "Loading…"
+  // until then instead of dropping back to the 6 legacy templates.
+  const productId = await whenProductIdReady();
+  const apiTemplates = await fetchTemplates(productId);
 
-    // Offline / no product / API down — show the 6 legacy templates so the
-    // editor is still useful in standalone dev runs.
-    LEGACY_TEMPLATES.forEach((tpl) => {
+  grid.innerHTML = '';
+  if (apiTemplates.length > 0) {
+    apiTemplates.forEach((tpl) => {
       const card = document.createElement('div');
       card.className = 'template-card';
-      card.style.background = tpl.bg;
-      card.innerHTML = `
-        <div style="position:absolute; inset:0; padding:10px; display:flex; flex-direction:column; justify-content:flex-end; color:white; font-family: ui-sans-serif, system-ui, sans-serif;">
-          <div style="height:3px; width:24px; background:${tpl.accent}; margin-bottom:6px; border-radius:2px;"></div>
-          <div style="font-weight:800; font-size:12px;">${tpl.text}</div>
-          <div style="font-size:9px; opacity:0.85;">${tpl.text2}</div>
-        </div>
-      `;
       card.title = tpl.name;
-      card.onclick = () => applyLegacyTemplate(canvas, tpl);
+      card.innerHTML = templateCardHtml(tpl);
+      card.onclick = () => applySeededTemplate(canvas, tpl);
       grid.appendChild(card);
     });
+    return;
+  }
+
+  // The backend has no templates for this product (or the request failed).
+  // Show the 6 legacy templates so the editor is still usable.
+  grid.insertAdjacentHTML('beforebegin',
+    `<div class="empty-state" style="margin: 0 0 12px; padding: 8px 12px; background: #fff7ed; color: #9a3412; border-radius: 8px; font-size: 12px;">
+       No seeded templates for this product yet — showing built-in fallbacks.
+     </div>`);
+  LEGACY_TEMPLATES.forEach((tpl) => {
+    const card = document.createElement('div');
+    card.className = 'template-card';
+    card.style.background = tpl.bg;
+    card.innerHTML = `
+      <div style="position:absolute; inset:0; padding:10px; display:flex; flex-direction:column; justify-content:flex-end; color:white; font-family: ui-sans-serif, system-ui, sans-serif;">
+        <div style="height:3px; width:24px; background:${tpl.accent}; margin-bottom:6px; border-radius:2px;"></div>
+        <div style="font-weight:800; font-size:12px;">${tpl.text}</div>
+        <div style="font-size:9px; opacity:0.85;">${tpl.text2}</div>
+      </div>
+    `;
+    card.title = tpl.name;
+    card.onclick = () => applyLegacyTemplate(canvas, tpl);
+    grid.appendChild(card);
   });
 }
 
