@@ -62,6 +62,46 @@ class DesignTemplatesSeeder extends Seeder
     /** 10 fictional B2B brands — rotated by template index. */
     private array $copyPool;
 
+    /**
+     * Source images served by the storefront at /images/templates/*.jpg.
+     * All are licensed under the Unsplash License — see
+     * storefront/public/images/templates/ATTRIBUTION.md for photo IDs
+     * and credits. Natural size is 1200×800 (3:2) for every image, so
+     * the seeder can compute scale factors uniformly.
+     */
+    private const IMAGE_NATURAL_W = 1200;
+    private const IMAGE_NATURAL_H = 800;
+    private const IMAGE_POOL = [
+        'office' => [
+            '/images/templates/office-laptop-desk.jpg',
+            '/images/templates/office-workspace.jpg',
+            '/images/templates/office-modern.jpg',
+            '/images/templates/office-meeting-table.jpg',
+        ],
+        'architecture' => [
+            '/images/templates/architecture-skyscraper.jpg',
+            '/images/templates/architecture-building.jpg',
+            '/images/templates/architecture-interior.jpg',
+        ],
+        'creative' => [
+            '/images/templates/creative-tools.jpg',
+            '/images/templates/creative-studio.jpg',
+            '/images/templates/creative-designer.jpg',
+        ],
+        'industry' => [
+            '/images/templates/industry-warehouse.jpg',
+            '/images/templates/industry-workshop.jpg',
+        ],
+        'finance' => [
+            '/images/templates/finance-charts.jpg',
+            '/images/templates/finance-laptop-graphs.jpg',
+        ],
+        'abstract' => [
+            '/images/templates/abstract-gradient.jpg',
+            '/images/templates/abstract-blue.jpg',
+        ],
+    ];
+
     /** Per-product trim dimensions in mm. */
     private array $dimensionsBySlug = [
         'business-card'         => [85,  55],
@@ -116,17 +156,19 @@ class DesignTemplatesSeeder extends Seeder
             'bold-statement',  // 10: huge typography
         ];
 
+        // Each brand pairs with one of the 6 IMAGE_POOL themes so the photo
+        // shown in image-hero / photo-grid layouts matches the brand's industry.
         $this->copyPool = [
-            ['name' => 'APEX ADVISORY',      'role' => 'Strategy & Consulting',        'tagline' => 'Sharper thinking. Faster outcomes.',     'contact' => "apex.example  ·  +49 30 555 0101\nKurfürstendamm 12 · 10719 Berlin"],
-            ['name' => 'NORTHBRIDGE STUDIO', 'role' => 'Brand & Design',                'tagline' => 'Designed to be remembered.',             'contact' => "northbridge.example  ·  +44 20 7946 0102\nShoreditch High St · London E1 6JE"],
-            ['name' => 'HELIX GROUP',        'role' => 'Engineering & Industrials',     'tagline' => 'Precision at scale.',                    'contact' => "helix.example  ·  +1 415 555 0103\n1 Market St · San Francisco CA 94105"],
-            ['name' => 'LUMEN & CO.',        'role' => 'Light & Architecture',          'tagline' => 'Where space meets story.',               'contact' => "lumen.example  ·  +33 1 4234 0104\n7 rue de Rivoli · 75004 Paris"],
-            ['name' => 'VERITAS PARTNERS',   'role' => 'Legal Counsel',                 'tagline' => 'Trusted counsel since 1998.',            'contact' => "veritas.example  ·  +49 89 1234 0105\nMaximilianstraße 33 · 80539 München"],
-            ['name' => 'ATELIER BERLIN',     'role' => 'Architecture & Interiors',      'tagline' => 'Quietly extraordinary spaces.',          'contact' => "atelier.example  ·  +49 30 5678 0106\nLinienstraße 144 · 10115 Berlin"],
-            ['name' => 'COBALT INDUSTRIES',  'role' => 'Precision Manufacturing',       'tagline' => 'Built to last. Made to scale.',          'contact' => "cobalt.example  ·  +49 89 7890 0107\nIndustriepark 4 · 81829 München"],
-            ['name' => 'MERIDIAN GROUP',     'role' => 'Financial Advisory',            'tagline' => 'Capital, sharper.',                      'contact' => "meridian.example  ·  +44 20 1234 0108\n80 Cannon St · London EC4N 6HL"],
-            ['name' => 'FORGE & CO.',        'role' => 'Product Design',                'tagline' => 'Hammered into shape.',                   'contact' => "forge.example  ·  +1 212 555 0109\n240 W 35th St · New York NY 10001"],
-            ['name' => 'EQUINOX STUDIO',     'role' => 'Creative Agency',               'tagline' => 'Balance. Light. Result.',                'contact' => "equinox.example  ·  +49 30 9012 0110\nTorstraße 92 · 10119 Berlin"],
+            ['name' => 'APEX ADVISORY',      'role' => 'Strategy & Consulting',     'tagline' => 'Sharper thinking. Faster outcomes.',  'contact' => "apex.example  ·  +49 30 555 0101\nKurfürstendamm 12 · 10719 Berlin",      'theme' => 'office'],
+            ['name' => 'NORTHBRIDGE STUDIO', 'role' => 'Brand & Design',            'tagline' => 'Designed to be remembered.',          'contact' => "northbridge.example  ·  +44 20 7946 0102\nShoreditch High St · London E1 6JE",  'theme' => 'creative'],
+            ['name' => 'HELIX GROUP',        'role' => 'Engineering & Industrials', 'tagline' => 'Precision at scale.',                 'contact' => "helix.example  ·  +1 415 555 0103\n1 Market St · San Francisco CA 94105", 'theme' => 'industry'],
+            ['name' => 'LUMEN & CO.',        'role' => 'Light & Architecture',      'tagline' => 'Where space meets story.',            'contact' => "lumen.example  ·  +33 1 4234 0104\n7 rue de Rivoli · 75004 Paris",          'theme' => 'architecture'],
+            ['name' => 'VERITAS PARTNERS',   'role' => 'Legal Counsel',             'tagline' => 'Trusted counsel since 1998.',         'contact' => "veritas.example  ·  +49 89 1234 0105\nMaximilianstraße 33 · 80539 München",  'theme' => 'office'],
+            ['name' => 'ATELIER BERLIN',     'role' => 'Architecture & Interiors',  'tagline' => 'Quietly extraordinary spaces.',       'contact' => "atelier.example  ·  +49 30 5678 0106\nLinienstraße 144 · 10115 Berlin",     'theme' => 'architecture'],
+            ['name' => 'COBALT INDUSTRIES',  'role' => 'Precision Manufacturing',   'tagline' => 'Built to last. Made to scale.',       'contact' => "cobalt.example  ·  +49 89 7890 0107\nIndustriepark 4 · 81829 München",      'theme' => 'industry'],
+            ['name' => 'MERIDIAN GROUP',     'role' => 'Financial Advisory',        'tagline' => 'Capital, sharper.',                   'contact' => "meridian.example  ·  +44 20 1234 0108\n80 Cannon St · London EC4N 6HL",     'theme' => 'finance'],
+            ['name' => 'FORGE & CO.',        'role' => 'Product Design',            'tagline' => 'Hammered into shape.',                'contact' => "forge.example  ·  +1 212 555 0109\n240 W 35th St · New York NY 10001",     'theme' => 'creative'],
+            ['name' => 'EQUINOX STUDIO',     'role' => 'Creative Agency',           'tagline' => 'Balance. Light. Result.',             'contact' => "equinox.example  ·  +49 30 9012 0110\nTorstraße 92 · 10119 Berlin",         'theme' => 'creative'],
         ];
     }
 
@@ -541,17 +583,24 @@ class DesignTemplatesSeeder extends Seeder
     private function layoutImageHero(array $c): array
     {
         [$w, $h, $palette, $fonts, $copy] = $this->unpack($c);
-        $imgH = $h * ($c['isTall'] ? 0.55 : 0.55);
+        $imgH = $h * 0.55;
         $headingSize = $c['isTall'] ? 72 : ($c['orientation'] === 'landscape' ? 32 : 40);
         $logoW = min($w * 0.30, 130);
         $logoH = $logoW * 0.5;
 
         return [
             $this->bg($w, $h, $palette[2]),
-            // Large image placeholder filling the top portion
-            $this->rect($this->mix($palette[0], 90), 0, 0, $w, $imgH, name: 'placeholder-image'),
-            ...$this->placeholderLabel($w / 2, $imgH / 2, 'YOUR PHOTO HERE', $palette[1], $fonts['body']),
-            // Decorative corner brackets to suggest image crop
+
+            // Real Unsplash photo filling the top portion — matches the
+            // brand's industry theme (office / architecture / industry / …).
+            $this->image($this->imageForBrand($copy, 0), 0, 0, $w, $imgH, name: 'placeholder-image'),
+
+            // Coloured tint strip across the bottom of the image, in the
+            // brand palette — adds depth and ensures the "accent" colour
+            // appears even when the photo is monochrome.
+            $this->rect($this->mix($palette[1], 65), 0, $imgH - 6, $w, 6, name: 'accent-strip'),
+
+            // Decorative corner brackets to suggest image crop / framing.
             $this->rect($palette[1], 24, 24, 36, 3, name: 'crop-mark-1'),
             $this->rect($palette[1], 24, 24, 3, 36, name: 'crop-mark-2'),
             $this->rect($palette[1], $w - 60, $imgH - 27, 36, 3, name: 'crop-mark-3'),
@@ -584,29 +633,31 @@ class DesignTemplatesSeeder extends Seeder
         $logoW = min($w * 0.26, 110);
         $logoH = $logoW * 0.5;
 
-        // 4-cell grid filling top 60%
+        // 4-cell grid filling top 55 %
         $gridTop = 24;
         $gridH   = $h * 0.55;
         $gap = 8;
         $cellW = ($w - 48 - $gap) / 2;
         $cellH = ($gridH - $gap) / 2;
 
-        $cell = function (float $x, float $y, string $name) use ($palette, $cellW, $cellH) {
-            return $this->rect($this->mix($palette[0], 90), $x, $y, $cellW, $cellH, name: $name);
-        };
+        // 4 real images cycled from the brand's themed pool. If the pool
+        // has fewer than 4 photos (some themes only have 2) the cycle
+        // wraps — visually fine because adjacent cells get different
+        // angles/crops of the same source.
+        $img1 = $this->imageForBrand($copy, 0);
+        $img2 = $this->imageForBrand($copy, 1);
+        $img3 = $this->imageForBrand($copy, 2);
+        $img4 = $this->imageForBrand($copy, 3);
 
         return [
             $this->bg($w, $h, $palette[2]),
-            $cell(24,                         $gridTop,            'placeholder-image-1'),
-            $cell(24 + $cellW + $gap,         $gridTop,            'placeholder-image-2'),
-            $cell(24,                         $gridTop + $cellH + $gap, 'placeholder-image-3'),
-            $cell(24 + $cellW + $gap,         $gridTop + $cellH + $gap, 'placeholder-image-4'),
+            $this->image($img1, 24,                     $gridTop,                       $cellW, $cellH, name: 'placeholder-image-1'),
+            $this->image($img2, 24 + $cellW + $gap,     $gridTop,                       $cellW, $cellH, name: 'placeholder-image-2'),
+            $this->image($img3, 24,                     $gridTop + $cellH + $gap,       $cellW, $cellH, name: 'placeholder-image-3'),
+            $this->image($img4, 24 + $cellW + $gap,     $gridTop + $cellH + $gap,       $cellW, $cellH, name: 'placeholder-image-4'),
 
-            // small labels on each cell
-            $this->iText('IMG 01', 24 + 8, $gridTop + 8, fontFamily: $fonts['body'], fontSize: 10, fill: $palette[1], fontWeight: '700'),
-            $this->iText('IMG 02', 24 + $cellW + $gap + 8, $gridTop + 8, fontFamily: $fonts['body'], fontSize: 10, fill: $palette[1], fontWeight: '700'),
-            $this->iText('IMG 03', 24 + 8, $gridTop + $cellH + $gap + 8, fontFamily: $fonts['body'], fontSize: 10, fill: $palette[1], fontWeight: '700'),
-            $this->iText('IMG 04', 24 + $cellW + $gap + 8, $gridTop + $cellH + $gap + 8, fontFamily: $fonts['body'], fontSize: 10, fill: $palette[1], fontWeight: '700'),
+            // Accent-coloured thin frame at the bottom of the grid
+            $this->rect($palette[1], 24, $gridTop + $gridH + 4, $w - 48, 2, name: 'accent-frame'),
 
             $this->rect($palette[1], 24, $gridTop + $gridH + 24, 48, 3, name: 'accent-divider'),
 
@@ -704,6 +755,44 @@ class DesignTemplatesSeeder extends Seeder
         if ($name !== null) $o['name'] = $name;
         if ($width !== null) $o['width'] = round($width, 2);
         return $o;
+    }
+
+    /**
+     * Embed a real Fabric.js image (loaded via Image.fromURL at render time).
+     * `$src` is a same-origin URL like `/images/templates/office-laptop-desk.jpg`
+     * — the storefront serves these from its `public/` folder.
+     *
+     * Source images are 1200 × 800 — we set Fabric's natural width/height to
+     * those values and compute scaleX/scaleY to land on the target area. Slight
+     * aspect distortion when target isn't 3:2 is fine for templates; the
+     * customer can crop/replace in the designer.
+     */
+    private function image(
+        string $src, float $left, float $top, float $targetW, float $targetH,
+        ?string $name = null,
+    ): array {
+        $o = [
+            'type'   => 'image',
+            'src'    => $src,
+            'left'   => round($left, 2),
+            'top'    => round($top, 2),
+            'width'  => self::IMAGE_NATURAL_W,
+            'height' => self::IMAGE_NATURAL_H,
+            'scaleX' => round($targetW / self::IMAGE_NATURAL_W, 4),
+            'scaleY' => round($targetH / self::IMAGE_NATURAL_H, 4),
+            'crossOrigin' => null,
+            'selectable'  => true,
+        ];
+        if ($name !== null) $o['name'] = $name;
+        return $o;
+    }
+
+    /** Pick one image URL from a brand's themed pool by index. */
+    private function imageForBrand(array $copy, int $offset = 0): string
+    {
+        $pool = self::IMAGE_POOL[$copy['theme'] ?? 'office']
+              ?? self::IMAGE_POOL['office'];
+        return $pool[$offset % count($pool)];
     }
 
     private function textbox(
@@ -901,6 +990,12 @@ class DesignTemplatesSeeder extends Seeder
         $w    = (float) ($o['width']  ?? 0);
         $h    = (float) ($o['height'] ?? 0);
 
+        // Images carry natural-pixel width/height plus a scaleX/scaleY —
+        // the on-canvas bbox is (width × scaleX, height × scaleY).
+        if (($o['type'] ?? '') === 'image') {
+            $w *= (float) ($o['scaleX'] ?? 1);
+            $h *= (float) ($o['scaleY'] ?? 1);
+        }
         if (($o['type'] ?? '') === 'circle' && isset($o['radius'])) {
             $w = $h = (float)$o['radius'] * 2;
         }
