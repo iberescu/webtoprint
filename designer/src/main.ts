@@ -321,11 +321,18 @@ async function ensureProductId(): Promise<string> {
     // Let the templates panel scope its API call to this product.
     setProductIdForTemplates(productId);
 
-    // Update the right-side product card from the catalogue.
-    document.getElementById('product-name')!.textContent = p.name;
-    document.getElementById('product-name-top')!.textContent = p.name;
-    document.getElementById('product-meta')!.textContent =
-      p.description ? truncate(p.description, 70) : '85 × 55 mm · 350 gsm';
+    // Update whatever product-display elements exist. The MOO-style top bar
+    // only has #product-name-top — the right-side order card is gone — but
+    // null-safe sets keep this working if someone reintroduces them later.
+    const setText = (id: string, text: string) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = text;
+    };
+    setText('product-name', p.name);
+    setText('product-name-top', p.name);
+    setText('product-meta', p.description ? truncate(p.description, 70) : '85 × 55 mm · 350 gsm');
+    setText('page-size-label',
+      `${p.metadata_json?.format_label ?? '85 × 55 mm'}`);
 
     return productId;
   })();
