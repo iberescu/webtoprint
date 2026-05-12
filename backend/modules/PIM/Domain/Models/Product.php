@@ -52,7 +52,19 @@ class Product extends Model implements Buyable
 
     public function rules(): HasMany
     {
-        return $this->hasMany(ProductRule::class);
+        return $this->hasMany(ProductRule::class)->orderByDesc('priority');
+    }
+
+    /** Pricing tables attached to this product (used by DefaultPriceCalculator). */
+    public function priceTables(): HasMany
+    {
+        return $this->hasMany(\Modules\Pricing\Domain\Models\PriceTable::class);
+    }
+
+    /** Setup fees / option surcharges / per-unit modifiers attached to this product. */
+    public function priceModifiers(): HasMany
+    {
+        return $this->hasMany(\Modules\Pricing\Domain\Models\PriceModifier::class);
     }
 
     public function assets(): HasMany

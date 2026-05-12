@@ -8,6 +8,8 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Modules\PIM\Domain\Models\Product;
+use Modules\PIM\Filament\Resources\ProductResource\Pages;
+use Modules\PIM\Filament\Resources\ProductResource\RelationManagers;
 
 class ProductResource extends Resource
 {
@@ -49,5 +51,24 @@ class ProductResource extends Resource
             Tables\Actions\EditAction::make(),
             Tables\Actions\DeleteAction::make(),
         ]);
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            RelationManagers\OptionsRelationManager::class,
+            RelationManagers\PriceTablesRelationManager::class,
+            RelationManagers\PriceModifiersRelationManager::class,
+            RelationManagers\RulesRelationManager::class,
+        ];
+    }
+
+    public static function getPages(): array
+    {
+        return [
+            'index'  => Pages\ListProducts::route('/'),
+            'create' => Pages\CreateProduct::route('/create'),
+            'edit'   => Pages\EditProduct::route('/{record}/edit'),
+        ];
     }
 }

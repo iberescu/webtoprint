@@ -6,6 +6,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Modules\Distribution\Domain\Models\ProductionJob;
+use Modules\Distribution\Filament\Resources\ProductionJobResource\Pages;
 
 class ProductionJobResource extends Resource
 {
@@ -27,5 +28,12 @@ class ProductionJobResource extends Resource
             Tables\Columns\TextColumn::make('external_order_ref')->label('Ext. order'),
             Tables\Columns\TextColumn::make('created_at')->dateTime(),
         ])->defaultSort('created_at', 'desc');
+    }
+
+    public static function getPages(): array
+    {
+        return [
+            'index' => Pages\ListProductionJobs::route('/'),
+        ];
     }
 }
