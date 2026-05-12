@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use Modules\Auth\Domain\Models\AdminUser;
+use Modules\Designer\Database\Seeders\DesignTemplatesSeeder;
 use Modules\Templates\Database\Seeders\TemplatesSeeder;
 
 class DatabaseSeeder extends Seeder
@@ -20,6 +21,7 @@ class DatabaseSeeder extends Seeder
             SettingsSeeder::class,
             CatalogueSeeder::class,
             TemplatesSeeder::class,
+            DesignTemplatesSeeder::class,
         ]);
     }
 }

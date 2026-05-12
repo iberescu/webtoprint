@@ -2,7 +2,7 @@ import { Canvas } from 'fabric';
 import { PDFDocument } from 'pdf-lib';
 import { DesignerClient } from './api';
 import { drawBleedAndSafe } from './overlays';
-import { renderPanel, renderProperties, type PanelKind } from './panels';
+import { renderPanel, renderProperties, setProductIdForTemplates, type PanelKind } from './panels';
 
 // ---------------------------------------------------------------------------
 // Setup
@@ -190,6 +190,9 @@ async function ensureProductId(): Promise<string> {
 
     productId = p.id;
     productSlug = p.slug;
+
+    // Let the templates panel scope its API call to this product.
+    setProductIdForTemplates(productId);
 
     // Update the right-side product card from the catalogue.
     document.getElementById('product-name')!.textContent = p.name;

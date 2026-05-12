@@ -4,8 +4,31 @@ import { Canvas, FabricImage, IText, Rect, Circle, Triangle } from 'fabric';
  * Renders left-tool panels (templates / text / uploads / shapes / colors / QR)
  * and the always-visible "selected layer" properties block. Vistaprint-style
  * "click to add" interactions, Canva-style template thumbs.
+ *
+ * Templates are pulled from `GET /api/v1/designer/templates?product_id=...`
+ * (filtered to status=published) and applied via `canvas.loadFromJSON` so
+ * every template seeded by `DesignTemplatesSeeder` works out of the box.
+ * If the API can't be reached (designer opened without a backend), the panel
+ * falls back to the hand-rolled `LEGACY_TEMPLATES` below so the editor stays
+ * usable.
  */
 export type PanelKind = 'templates' | 'text' | 'uploads' | 'shapes' | 'colors' | 'qr';
+
+/** Set once the bootstrapping product is resolved (see main.ts). */
+let CURRENT_PRODUCT_ID: string | null = null;
+export function setProductIdForTemplates(id: string) {
+  CURRENT_PRODUCT_ID = id;
+}
+
+type ApiTemplate = {
+  id: string;
+  name: string;
+  width_mm: number;
+  height_mm: number;
+  template_json: any;
+};
+
+const apiBase = (import.meta as any).env?.VITE_API_URL ?? 'http://localhost:8000/api/v1';
 
 const SWATCHES = [
   '#0f172a', '#1e293b', '#475569', '#94a3b8', '#cbd5e1', '#e2e8f0', '#f1f5f9', '#ffffff',
@@ -13,7 +36,7 @@ const SWATCHES = [
   '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '#ec4899', '#f43f5e', '#000000',
 ];
 
-const TEMPLATES = [
+const LEGACY_TEMPLATES = [
   { name: 'Modern Indigo',  bg: '#4f46e5', accent: '#fbbf24', text: 'Acme Studio',  text2: 'Design + Print' },
   { name: 'Bold Amber',     bg: '#f59e0b', accent: '#1e293b', text: 'Sunrise Café', text2: 'Coffee · Pastries · Books' },
   { name: 'Minimal Slate',  bg: '#0f172a', accent: '#94a3b8', text: 'Helvetica Co.', text2: 'Brand Strategy' },
@@ -21,6 +44,47 @@ const TEMPLATES = [
   { name: 'Forest',         bg: '#166534', accent: '#86efac', text: 'Greenleaf',     text2: 'Sustainable design' },
   { name: 'Premium Black',  bg: '#18181b', accent: '#fbbf24', text: 'Onyx Studio',   text2: 'Luxury & lifestyle' },
 ];
+
+async function fetchTemplates(productId: string | null): Promise<ApiTemplate[]> {
+  if (!productId) return [];
+  try {
+    const url = `${apiBase}/designer/templates?product_id=${encodeURIComponent(productId)}`;
+    const res = await fetch(url);
+    if (!res.ok) return [];
+    const body = await res.json();
+    return Array.isArray(body?.data) ? (body.data as ApiTemplate[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Tiny inline preview of a template — we draw the same rect+text objects to a
+ * miniature canvas using CSS. Good enough to tell the layouts apart without
+ * loading a full Fabric instance per card.
+ */
+function templateCardHtml(tpl: ApiTemplate): string {
+  const bg = tpl.template_json?.background ?? '#0f1a30';
+  // Estimate accent + heading from the first non-background colored objects.
+  let accent = '#D4AF37', heading = '#FFFFFF', name = 'YOUR COMPANY';
+  for (const o of tpl.template_json?.objects ?? []) {
+    if (o?.name === 'accent-divider' || o?.name === 'accent-strip' || o?.name === 'accent-band' || o?.name === 'accent-corner') {
+      accent = o.fill ?? accent;
+    }
+    if (o?.name === 'placeholder-company') {
+      heading = o.fill ?? heading;
+      name = (o.text ?? '').slice(0, 22);
+    }
+  }
+  return `
+    <div style="position:absolute; inset:0; padding:8px; display:flex; flex-direction:column; justify-content:flex-end; color:${heading};">
+      <div style="height:3px; width:24px; background:${accent}; margin-bottom:5px; border-radius:2px;"></div>
+      <div style="font-weight:800; font-size:11px; line-height:1.1; opacity:0.95;">${name}</div>
+      <div style="font-size:9px; opacity:0.7; margin-top:1px;">${tpl.width_mm}×${tpl.height_mm} mm</div>
+    </div>
+    <div style="position:absolute; inset:0; background:${bg}; z-index:-1;"></div>
+  `;
+}
 
 const SHAPES = [
   { kind: 'rect',     label: 'Rectangle' },
@@ -43,28 +107,70 @@ export function renderPanel(panelEl: HTMLElement, kind: PanelKind, canvas: Canva
 function renderTemplates(panel: HTMLElement, canvas: Canvas) {
   panel.innerHTML = `
     <h2 class="section-title">Templates</h2>
-    <p style="margin: 0 0 12px; font-size: 12px; color: var(--muted)">Click a template to start. You can edit any element afterwards.</p>
-    <div class="templates"></div>
+    <p style="margin: 0 0 12px; font-size: 12px; color: var(--muted)">Click a template to start. You can edit every element afterwards.</p>
+    <div class="templates" id="templates-grid">
+      <div class="empty-state" style="grid-column: 1 / -1;">Loading templates…</div>
+    </div>
   `;
-  const grid = panel.querySelector('.templates')!;
-  TEMPLATES.forEach((tpl) => {
-    const card = document.createElement('div');
-    card.className = 'template-card';
-    card.style.background = tpl.bg;
-    card.innerHTML = `
-      <div style="position:absolute; inset:0; padding:10px; display:flex; flex-direction:column; justify-content:flex-end; color:white; font-family: ui-sans-serif, system-ui, sans-serif;">
-        <div style="height:3px; width:24px; background:${tpl.accent}; margin-bottom:6px; border-radius:2px;"></div>
-        <div style="font-weight:800; font-size:12px;">${tpl.text}</div>
-        <div style="font-size:9px; opacity:0.85;">${tpl.text2}</div>
-      </div>
-    `;
-    card.title = tpl.name;
-    card.onclick = () => applyTemplate(canvas, tpl);
-    grid.appendChild(card);
+  const grid = panel.querySelector('#templates-grid')!;
+
+  fetchTemplates(CURRENT_PRODUCT_ID).then((apiTemplates) => {
+    grid.innerHTML = '';
+    if (apiTemplates.length > 0) {
+      apiTemplates.forEach((tpl) => {
+        const card = document.createElement('div');
+        card.className = 'template-card';
+        card.title = tpl.name;
+        card.innerHTML = templateCardHtml(tpl);
+        card.onclick = () => applySeededTemplate(canvas, tpl);
+        grid.appendChild(card);
+      });
+      return;
+    }
+
+    // Offline / no product / API down — show the 6 legacy templates so the
+    // editor is still useful in standalone dev runs.
+    LEGACY_TEMPLATES.forEach((tpl) => {
+      const card = document.createElement('div');
+      card.className = 'template-card';
+      card.style.background = tpl.bg;
+      card.innerHTML = `
+        <div style="position:absolute; inset:0; padding:10px; display:flex; flex-direction:column; justify-content:flex-end; color:white; font-family: ui-sans-serif, system-ui, sans-serif;">
+          <div style="height:3px; width:24px; background:${tpl.accent}; margin-bottom:6px; border-radius:2px;"></div>
+          <div style="font-weight:800; font-size:12px;">${tpl.text}</div>
+          <div style="font-size:9px; opacity:0.85;">${tpl.text2}</div>
+        </div>
+      `;
+      card.title = tpl.name;
+      card.onclick = () => applyLegacyTemplate(canvas, tpl);
+      grid.appendChild(card);
+    });
   });
 }
 
-function applyTemplate(canvas: Canvas, tpl: typeof TEMPLATES[number]) {
+/**
+ * Replace canvas content with a backend-seeded template (Fabric.js scene).
+ * Keeps the bleed/safe overlays in place.
+ */
+async function applySeededTemplate(canvas: Canvas, tpl: ApiTemplate) {
+  const keepers: any[] = (canvas.getObjects() as any[]).filter((o) => !o.selectable);
+  canvas.clear();
+
+  try {
+    await canvas.loadFromJSON(tpl.template_json);
+  } catch (e) {
+    console.error('Failed to load template JSON:', e);
+    // Restore overlays at least.
+    keepers.forEach((o) => canvas.add(o));
+    return;
+  }
+
+  // Put bleed/safe overlays back on top.
+  keepers.forEach((o) => canvas.add(o));
+  canvas.renderAll();
+}
+
+function applyLegacyTemplate(canvas: Canvas, tpl: typeof LEGACY_TEMPLATES[number]) {
   // remove user objects but keep overlays
   const keepers: any[] = (canvas.getObjects() as any[]).filter((o) => !o.selectable);
   canvas.clear();
