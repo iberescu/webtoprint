@@ -16,6 +16,10 @@ RUN apk add --no-cache --virtual .build-deps $PHPIZE_DEPS \
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
+# Tuned opcache settings — Windows Docker bind-mount + Laravel boot is
+# unworkably slow at PHP defaults. See docker/php/opcache.ini for rationale.
+COPY docker/php/opcache.ini /usr/local/etc/php/conf.d/zz-opcache.ini
+
 WORKDIR /var/www/html
 
 EXPOSE 9000
