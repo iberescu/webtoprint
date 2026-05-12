@@ -46,6 +46,38 @@ services:
     working_dir: /var/www/html
     command: ["php", "artisan", "schedule:work"]
 
+  # Single-host aggregator for ngrok-free: fans out one public hostname to
+  # storefront / designer / backend / shop via path prefixes.
+  nginx-public:
+    image: nginx:1.27-alpine
+    depends_on: [nginx, nginx-shop, designer, storefront]
+    ports:
+      - "8080:80"
+    volumes:
+      - ./docker/nginx/public.conf:/etc/nginx/conf.d/default.conf:ro
+
+  nginx-shop:
+    image: nginx:1.27-alpine
+    depends_on: [php-shop]
+    ports:
+      - "8001:80"
+    volumes:
+      - ./backend-shop:/var/www/html:cached
+      - ./docker/nginx/shop.conf:/etc/nginx/conf.d/default.conf:ro
+
+  php-shop:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    depends_on: [postgres, redis]
+    env_file: [./backend-shop/.env]
+    volumes:
+      - ./backend-shop:/var/www/html:cached
+      - ./backend:/var/www/backend:cached
+      - ./custom:/var/www/custom:cached
+      - shop_sqlite:/var/lib/wtp-shop
+    working_dir: /var/www/html
+
   postgres:
     image: postgres:16-alpine
     environment:
@@ -96,25 +128,33 @@ services:
       - meilidata:/meili_data
 
   storefront:
-    image: node:20-alpine
+    image: node:22-alpine
     working_dir: /app
-    depends_on: [nginx]
+    depends_on: [nginx, nginx-shop]
     environment:
-      PUBLIC_API_URL: http://localhost:8000/api/v1
+      # Server-side (SSR) URL — must resolve inside the docker network.
+      INTERNAL_API_URL: http://nginx/api/v1
+      # Browser-side URLs — what the user types in their address bar.
+      PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:8000/api/v1}
+      PUBLIC_SHOP_API_URL: ${PUBLIC_SHOP_API_URL:-http://localhost:8001/api/v1}
+      PUBLIC_DESIGNER_URL: ${PUBLIC_DESIGNER_URL:-http://localhost:5173}
     volumes:
       - ./storefront:/app:cached
       - storefront_node_modules:/app/node_modules
-    command: ["sh", "-c", "corepack enable && pnpm install && pnpm dev --host 0.0.0.0"]
+    command: ["sh", "-c", "corepack enable && corepack prepare pnpm@9.15.4 --activate && pnpm install && pnpm dev --host 0.0.0.0"]
     ports:
       - "4321:4321"
 
   designer:
-    image: node:20-alpine
+    image: node:22-alpine
     working_dir: /app
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000/api/v1}
+      VITE_STOREFRONT_URL: ${VITE_STOREFRONT_URL:-http://localhost:4321}
     volumes:
       - ./designer:/app:cached
       - designer_node_modules:/app/node_modules
-    command: ["sh", "-c", "corepack enable && pnpm install && pnpm dev --host 0.0.0.0"]
+    command: ["sh", "-c", "corepack enable && corepack prepare pnpm@9.15.4 --activate && pnpm install && pnpm dev --host 0.0.0.0"]
     ports:
       - "5173:5173"
 
@@ -125,3 +165,4 @@ volumes:
   meilidata:
   storefront_node_modules:
   designer_node_modules:
+  shop_sqlite:

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api, type ConfiguratorPayload, type PriceResult, type ValidationResult } from '~/lib/api';
 
+const DESIGNER_BASE = import.meta.env.PUBLIC_DESIGNER_URL ?? 'http://localhost:5173';
+
 type Props = { slug: string };
 
 export default function ProductConfigurator({ slug }: Props) {
@@ -85,8 +87,23 @@ export default function ProductConfigurator({ slug }: Props) {
               <div class="text-xs text-emerald-700">Design <span class="font-mono">#{designId.slice(0, 8)}</span> from the editor will be printed on this order.</div>
             </div>
           </div>
-          <a href={`http://localhost:5173/?design=${designId}&product=${data.product.slug}`} class="text-xs font-semibold text-emerald-700 underline hover:text-emerald-900">Edit design</a>
+          <a href={`${DESIGNER_BASE}/?design=${designId}&product=${data.product.slug}&return=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin + window.location.pathname : '')}`} class="text-xs font-semibold text-emerald-700 underline hover:text-emerald-900">Edit design</a>
         </div>
+      )}
+      {!designId && data.product.requires_design && (
+        <a
+          href={`${DESIGNER_BASE}/?product=${data.product.slug}&return=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin + window.location.pathname : '')}`}
+          class="flex items-center justify-between gap-3 rounded-lg border-2 border-dashed border-brand-300 bg-brand-50 p-4 text-sm hover:border-brand-500 hover:bg-brand-100"
+        >
+          <div class="flex items-center gap-3">
+            <span class="grid h-10 w-10 place-items-center rounded-full bg-brand-500 text-xl text-white">🎨</span>
+            <div>
+              <div class="font-bold text-brand-900">Design your {data.product.name.toLowerCase()}</div>
+              <div class="text-xs text-brand-700">Open the online designer — free, no software needed</div>
+            </div>
+          </div>
+          <span class="rounded-md bg-brand-500 px-3 py-2 font-semibold text-white">Launch designer →</span>
+        </a>
       )}
       {data.options.map((opt) => (
         <div key={opt.code}>

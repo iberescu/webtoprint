@@ -15,7 +15,9 @@ return new class extends Migration {
             $table->text('description')->nullable();
             $table->unsignedInteger('sort_order')->default(0);
             $table->timestamps();
+        });
 
+        Schema::table('product_categories', function (Blueprint $table) {
             $table->foreign('parent_id')->references('id')->on('product_categories')->nullOnDelete();
         });
 

@@ -1,0 +1,13 @@
+# Single tunnel to the aggregator nginx (port 8080 on the host).
+# That nginx fans out to storefront / designer / backend / shop via
+# path prefixes — see docker/nginx/public.conf.
+#
+# Usage:
+#   1. Authtoken in default config: ngrok config add-authtoken <token>
+#   2. Stack up:                    docker compose up -d
+#   3. Start the tunnel:            ./scripts/start-ngrok.sh
+version: 3
+tunnels:
+  public:
+    proto: http
+    addr: 8080
