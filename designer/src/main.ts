@@ -93,29 +93,156 @@ window.addEventListener('keydown', (e) => {
 });
 
 // ---------------------------------------------------------------------------
-// Tool tabs (left sidebar)
+// Tool sheets (slide up from the bottom action bar)
 // ---------------------------------------------------------------------------
 
-const toolPanelEl = document.getElementById('tool-panel') as HTMLElement;
-const sidebarBtns = document.querySelectorAll<HTMLButtonElement>('.sidebar button');
+const toolPanelEl   = document.getElementById('tool-panel') as HTMLElement;
+const toolButtons   = document.querySelectorAll<HTMLButtonElement>('.tool-btn[data-panel]');
+const sheetEl       = document.getElementById('tool-sheet') as HTMLElement;
+const sheetBackdrop = document.getElementById('sheet-backdrop') as HTMLElement;
+const sheetCloseBtn = document.getElementById('sheet-close')!;
 
-function setPanel(kind: PanelKind) {
-  sidebarBtns.forEach((b) => b.classList.toggle('active', b.dataset.panel === kind));
+let activePanel: PanelKind | null = null;
+function openSheet(kind: PanelKind) {
+  toolButtons.forEach((b) => b.classList.toggle('active', b.dataset.panel === kind));
   renderPanel(toolPanelEl, kind, canvas);
+  sheetEl.classList.add('show');
+  sheetBackdrop.classList.add('show');
+  activePanel = kind;
 }
-sidebarBtns.forEach((b) => b.addEventListener('click', () => setPanel(b.dataset.panel as PanelKind)));
-setPanel('templates');
+function closeSheet() {
+  sheetEl.classList.remove('show');
+  sheetBackdrop.classList.remove('show');
+  toolButtons.forEach((b) => b.classList.remove('active'));
+  activePanel = null;
+}
+toolButtons.forEach((b) => b.addEventListener('click', () => {
+  const kind = b.dataset.panel as PanelKind;
+  if (activePanel === kind) closeSheet();
+  else openSheet(kind);
+}));
+sheetCloseBtn.addEventListener('click', closeSheet);
+sheetBackdrop.addEventListener('click', closeSheet);
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && activePanel) { closeSheet(); }
+});
 
 // ---------------------------------------------------------------------------
-// Selected-layer panel (left, bottom)
+// Contextual format toolbar (visible only when text is selected)
+// ---------------------------------------------------------------------------
+
+const ALLOWED_FONTS = [
+  'Inter', 'Playfair Display', 'Roboto Slab', 'Bebas Neue', 'DM Serif Display',
+  'Cormorant Garamond', 'Manrope', 'Source Sans 3', 'Lato', 'Karla',
+  'Poppins', 'Raleway', 'Montserrat',
+];
+const formatBar  = document.getElementById('format-toolbar') as HTMLElement;
+const fmtFont    = document.getElementById('fmt-font')    as HTMLSelectElement;
+const fmtSize    = document.getElementById('fmt-size')    as HTMLInputElement;
+const fmtColor   = document.getElementById('fmt-color')   as HTMLInputElement;
+const fmtBold    = document.getElementById('fmt-bold')    as HTMLButtonElement;
+const fmtItalic  = document.getElementById('fmt-italic')  as HTMLButtonElement;
+const fmtAlignL  = document.getElementById('fmt-align-left')   as HTMLButtonElement;
+const fmtAlignC  = document.getElementById('fmt-align-center') as HTMLButtonElement;
+const fmtAlignR  = document.getElementById('fmt-align-right')  as HTMLButtonElement;
+const fmtDelete  = document.getElementById('fmt-delete')  as HTMLButtonElement;
+const fmtMeta    = document.getElementById('fmt-meta')    as HTMLSpanElement;
+
+// Populate font dropdown once.
+fmtFont.innerHTML = ALLOWED_FONTS
+  .map((f) => `<option value="${f}" style="font-family: '${f}', sans-serif">${f}</option>`)
+  .join('');
+
+function isTextObject(o: any): boolean {
+  return o && (o.type === 'i-text' || o.type === 'textbox' || o.type === 'text');
+}
+
+function syncFormatToolbar() {
+  const active: any = canvas.getActiveObject();
+  if (!active || !isTextObject(active)) {
+    formatBar.classList.remove('show');
+    return;
+  }
+  formatBar.classList.add('show');
+  fmtFont.value   = active.fontFamily ?? 'Inter';
+  fmtSize.value   = String(active.fontSize ?? 16);
+  fmtColor.value  = colorToHex(active.fill);
+  fmtBold.classList.toggle('active',   String(active.fontWeight ?? '').toLowerCase() === 'bold' || Number(active.fontWeight) >= 600);
+  fmtItalic.classList.toggle('active', (active.fontStyle ?? 'normal') === 'italic');
+  fmtAlignL.classList.toggle('active', (active.textAlign ?? 'left') === 'left');
+  fmtAlignC.classList.toggle('active', active.textAlign === 'center');
+  fmtAlignR.classList.toggle('active', active.textAlign === 'right');
+  fmtMeta.textContent = `${active.type === 'textbox' ? 'textbox' : 'text'} · ${(active.text ?? '').length} chars`;
+}
+
+function colorToHex(c: any): string {
+  if (typeof c !== 'string') return '#0f1a30';
+  if (c.startsWith('#')) return c.length === 4
+    ? '#' + c.slice(1).split('').map((x) => x + x).join('')
+    : c.slice(0, 7);
+  // basic rgb(...) parsing — Fabric usually stores hex but legacy templates use rgb
+  const m = c.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+  if (m) {
+    const h = (n: number) => n.toString(16).padStart(2, '0');
+    return '#' + h(+m[1]) + h(+m[2]) + h(+m[3]);
+  }
+  return '#0f1a30';
+}
+
+function withActiveText(fn: (t: any) => void) {
+  const t: any = canvas.getActiveObject();
+  if (!isTextObject(t)) return;
+  fn(t);
+  t.set('dirty', true);
+  canvas.requestRenderAll();
+  syncFormatToolbar();
+  scheduleAutosave();
+}
+
+fmtFont  .addEventListener('change', () => withActiveText((t) => t.set('fontFamily', fmtFont.value)));
+fmtSize  .addEventListener('input',  () => withActiveText((t) => t.set('fontSize', Math.max(6, Math.min(240, +fmtSize.value || 16)))));
+fmtColor .addEventListener('input',  () => withActiveText((t) => t.set('fill', fmtColor.value)));
+fmtBold  .addEventListener('click',  () => withActiveText((t) => t.set('fontWeight', fmtBold.classList.contains('active') ? 'normal' : 'bold')));
+fmtItalic.addEventListener('click',  () => withActiveText((t) => t.set('fontStyle',  fmtItalic.classList.contains('active') ? 'normal' : 'italic')));
+fmtAlignL.addEventListener('click',  () => withActiveText((t) => t.set('textAlign', 'left')));
+fmtAlignC.addEventListener('click',  () => withActiveText((t) => t.set('textAlign', 'center')));
+fmtAlignR.addEventListener('click',  () => withActiveText((t) => t.set('textAlign', 'right')));
+fmtDelete.addEventListener('click',  () => {
+  const t = canvas.getActiveObject();
+  if (!t) return;
+  canvas.remove(t);
+  canvas.discardActiveObject();
+  canvas.requestRenderAll();
+  scheduleAutosave();
+});
+
+// ---------------------------------------------------------------------------
+// Floating layer-props panel — shown only for non-text selections
 // ---------------------------------------------------------------------------
 
 const layerPropsEl = document.getElementById('layer-props') as HTMLElement;
-const refreshProps = () => renderProperties(layerPropsEl, canvas);
+const layerBodyEl  = document.getElementById('layer-props-body') as HTMLElement;
+const refreshProps = () => {
+  const active: any = canvas.getActiveObject();
+  if (!active) {
+    layerPropsEl.classList.remove('show');
+    syncFormatToolbar();
+    return;
+  }
+  if (isTextObject(active)) {
+    // Text → format toolbar handles it, hide the floating panel.
+    layerPropsEl.classList.remove('show');
+  } else {
+    layerPropsEl.classList.add('show');
+    renderProperties(layerBodyEl, canvas);
+  }
+  syncFormatToolbar();
+};
 canvas.on('selection:created', refreshProps);
 canvas.on('selection:updated', refreshProps);
 canvas.on('selection:cleared', refreshProps);
-canvas.on('object:modified', refreshProps);
+canvas.on('object:modified',   refreshProps);
+canvas.on('text:changed',      syncFormatToolbar);
 
 // ---------------------------------------------------------------------------
 // Save / autosave

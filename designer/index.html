@@ -20,92 +20,221 @@
     />
     <style>
       :root {
-        --bg: #172847; --panel: #ffffff; --ink: #0f1a30; --muted: #64748b;
-        --accent: #2D5096; --amber: #f59e0b; --safe: #10b981; --danger: #ef4444;
+        --bg: #ffffff; --surface: #ffffff; --stage: #f3f4f6;
+        --ink: #0f1a30; --muted: #6b7280; --line: #e5e7eb;
+        --accent: #2D5096; --accent-strong: #1f3661;
+        --amber: #f59e0b; --safe: #10b981; --danger: #ef4444;
         --font: 'Inter', ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
       }
       * { box-sizing: border-box; }
       html, body, button, input, select, textarea { font-family: var(--font); }
-      body { margin: 0; font-size: 14px; line-height: 1.4; color: var(--ink); background: #f1f5f9; }
+      body {
+        margin: 0; font-size: 14px; line-height: 1.4; color: var(--ink);
+        background: var(--stage);
+        -webkit-font-smoothing: antialiased;
+        height: 100vh; overflow: hidden;
+      }
 
-      /* 4 columns: tool icons | tool/layer panel | stage | order panel */
-      .shell { display: grid; grid-template-rows: 56px 1fr; grid-template-columns: 64px 320px 1fr 340px; height: 100vh; }
-      .topbar { grid-column: 1 / -1; background: var(--bg); color: white; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; box-shadow: 0 1px 0 #1e293b; }
-      .topbar .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; }
-      .topbar .brand img { width: 28px; height: 28px; border-radius: 6px; }
-      .topbar .actions { display: flex; gap: 8px; }
-      .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 8px; border: 0; font-weight: 600; font-size: 13px; cursor: pointer; transition: background 0.15s; }
-      .btn-primary { background: var(--amber); color: #0f172a; }
-      .btn-primary:hover { background: #fbbf24; }
-      .btn-primary:disabled { background: #cbd5e1; color: #94a3b8; cursor: not-allowed; }
-      .btn-ghost { background: transparent; color: white; }
-      .btn-ghost:hover { background: rgba(255,255,255,0.08); }
-      .btn-secondary { background: white; color: var(--ink); border: 1px solid #e2e8f0; }
-      .btn-secondary:hover { background: #f8fafc; }
+      /* ─── three-row layout: top bar · stage · bottom bar ─────────────── */
+      .shell {
+        display: grid;
+        grid-template-rows: 56px auto 1fr 80px;
+        height: 100vh;
+        background: var(--bg);
+      }
 
-      .sidebar { background: var(--bg); color: white; display: flex; flex-direction: column; align-items: center; padding: 12px 0; gap: 4px; }
-      .sidebar button { width: 48px; height: 48px; border-radius: 10px; background: transparent; color: rgba(255,255,255,0.7); border: 0; cursor: pointer; flex-direction: column; display: flex; align-items: center; justify-content: center; gap: 2px; padding: 4px; font-size: 11px; }
-      .sidebar button.active, .sidebar button:hover { background: rgba(255,255,255,0.08); color: white; }
-      .sidebar svg { width: 22px; height: 22px; }
+      /* ─── TOP BAR ────────────────────────────────────────────────────── */
+      .topbar {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 0 20px; border-bottom: 1px solid var(--line); background: white;
+      }
+      .topbar .left { display: flex; align-items: center; gap: 12px; }
+      .topbar .brand { display: flex; align-items: center; gap: 8px; }
+      .topbar .brand img { width: 26px; height: 26px; }
+      .topbar .brand-name { font-weight: 800; font-size: 15px; color: var(--ink); letter-spacing: -0.01em; }
+      .topbar .product-name { color: var(--muted); padding-left: 14px; border-left: 1px solid var(--line); margin-left: 4px; font-weight: 500; font-size: 14px; }
 
-      .left-panel { background: var(--panel); border-right: 1px solid #e2e8f0; overflow: hidden; display: grid; grid-template-rows: 1fr auto; }
-      .tool-content { overflow-y: auto; padding: 16px; }
-      .layer-content { border-top: 1px solid #e2e8f0; background: #f8fafc; padding: 12px 16px; max-height: 45%; overflow-y: auto; }
+      .topbar .center { display: flex; align-items: center; gap: 8px; }
+      .topbar .right { display: flex; align-items: center; gap: 10px; }
 
-      h2.section-title { margin: 0 0 12px; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
-      h3.subsection-title { margin: 0 0 8px; font-size: 12px; font-weight: 700; color: var(--ink); }
-      .panel-section { margin-bottom: 20px; }
+      .icon-btn {
+        height: 36px; width: 36px; display: inline-grid; place-items: center;
+        background: white; color: var(--ink); border: 1px solid var(--line);
+        border-radius: 8px; cursor: pointer; transition: background 0.12s, border-color 0.12s;
+      }
+      .icon-btn:hover { background: #f9fafb; border-color: #d1d5db; }
+      .icon-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+      .icon-btn svg { width: 18px; height: 18px; }
 
-      .templates { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-      .template-card { aspect-ratio: 4/3; border-radius: 8px; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; overflow: hidden; position: relative; border: 2px solid transparent; }
-      .template-card:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(15,23,42,0.1); border-color: var(--accent); }
+      .save-status {
+        color: var(--muted); font-size: 12px; padding: 0 6px;
+        display: inline-flex; align-items: center; gap: 6px;
+      }
+      .save-status.dirty { color: var(--amber); }
+      .save-status.saved { color: var(--safe); }
 
-      .stage-wrap { background: #e2e8f0; display: flex; align-items: center; justify-content: center; padding: 32px; overflow: auto; position: relative; }
-      .stage-info { position: absolute; top: 12px; left: 16px; background: white; padding: 6px 12px; border-radius: 6px; font-size: 12px; color: var(--muted); display: flex; gap: 12px; align-items: center; box-shadow: 0 1px 3px rgba(15,23,42,0.08); }
-      .stage-info strong { color: var(--ink); }
-      .legend { display: inline-flex; gap: 8px; align-items: center; }
-      .swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
-      .canvas-frame { background: white; box-shadow: 0 4px 24px rgba(15,23,42,0.15); position: relative; }
+      .btn {
+        display: inline-flex; align-items: center; gap: 6px;
+        height: 36px; padding: 0 14px; border-radius: 8px;
+        border: 1px solid transparent; font-weight: 600; font-size: 13px;
+        cursor: pointer; transition: background 0.12s, transform 0.05s;
+      }
+      .btn:active { transform: translateY(1px); }
+      .btn-primary { background: var(--accent); color: white; }
+      .btn-primary:hover { background: var(--accent-strong); }
+      .btn-primary:disabled { background: #cbd5e1; color: white; cursor: not-allowed; }
+      .btn-secondary { background: white; color: var(--ink); border-color: var(--line); }
+      .btn-secondary:hover { background: #f9fafb; border-color: #d1d5db; }
+      .btn-ghost { background: transparent; color: var(--ink); }
+      .btn-ghost:hover { background: #f3f4f6; }
 
-      .right { background: var(--panel); border-left: 1px solid #e2e8f0; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 18px; }
-      .order-card { border-radius: 12px; background: linear-gradient(135deg, #2D5096, #1f3661); color: white; padding: 16px; box-shadow: 0 10px 25px -10px rgba(45,80,150,0.35); }
-      .order-card .product-name { font-size: 18px; font-weight: 800; }
-      .order-card .product-meta { font-size: 12px; opacity: 0.85; margin-top: 2px; }
+      /* ─── CONTEXTUAL FORMAT TOOLBAR ─────────────────────────────────── */
+      .format-toolbar {
+        background: white; border-bottom: 1px solid var(--line);
+        padding: 8px 20px;
+        display: none; align-items: center; gap: 8px;
+      }
+      .format-toolbar.show { display: flex; }
+      .format-toolbar select, .format-toolbar input[type="number"] {
+        height: 34px; padding: 0 10px; border: 1px solid var(--line);
+        border-radius: 8px; font: inherit; font-size: 13px; color: var(--ink);
+        background: white; cursor: pointer;
+      }
+      .format-toolbar select:focus, .format-toolbar input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+      .format-toolbar .font-select { min-width: 180px; }
+      .format-toolbar .size-input { width: 70px; }
+      .format-toolbar .swatch-btn {
+        width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 8px;
+        cursor: pointer; padding: 3px; background: white;
+      }
+      .format-toolbar .swatch-btn input { width: 100%; height: 100%; border: 0; padding: 0; background: transparent; cursor: pointer; }
+      .format-toolbar .seg-btn {
+        height: 34px; width: 34px; display: inline-grid; place-items: center;
+        background: white; color: var(--ink); border: 1px solid var(--line);
+        border-radius: 8px; cursor: pointer; font-weight: 700;
+      }
+      .format-toolbar .seg-btn:hover { background: #f9fafb; }
+      .format-toolbar .seg-btn.active { background: var(--ink); color: white; border-color: var(--ink); }
+      .format-toolbar .seg-group { display: inline-flex; gap: 4px; padding: 0 4px; border-left: 1px solid var(--line); }
+      .format-toolbar .seg-group:first-child { border-left: 0; padding-left: 0; }
+      .format-toolbar .meta { margin-left: auto; color: var(--muted); font-size: 12px; }
 
-      .field { display: grid; gap: 4px; margin-bottom: 12px; }
-      .field label { font-size: 12px; font-weight: 600; color: var(--ink); }
-      .field input[type=text], .field input[type=number], .field select { padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 8px; font: inherit; background: white; }
-      .field input:focus, .field select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
-      .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-      .colors { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; }
-      .colors button { aspect-ratio: 1; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer; }
+      /* ─── STAGE ─────────────────────────────────────────────────────── */
+      .stage-wrap {
+        background: var(--stage);
+        display: flex; align-items: center; justify-content: center;
+        overflow: auto; position: relative;
+        padding: 28px;
+      }
+      .canvas-frame {
+        background: white; box-shadow: 0 8px 32px rgba(15,23,42,0.10);
+        position: relative; border-radius: 4px;
+      }
+      .stage-info {
+        position: absolute; top: 16px; left: 24px;
+        background: white; padding: 6px 12px; border-radius: 999px;
+        font-size: 12px; color: var(--muted);
+        display: inline-flex; align-items: center; gap: 12px;
+        box-shadow: 0 1px 4px rgba(15,23,42,0.06); border: 1px solid var(--line);
+      }
+      .stage-info strong { color: var(--ink); font-weight: 600; }
+      .stage-info .legend { display: inline-flex; gap: 12px; align-items: center; padding-left: 8px; border-left: 1px solid var(--line); }
+      .stage-info .swatch { width: 8px; height: 8px; border-radius: 2px; }
+
+      /* ─── BOTTOM ACTION BAR ─────────────────────────────────────────── */
+      .bottombar {
+        background: white; border-top: 1px solid var(--line);
+        display: flex; align-items: center; justify-content: center;
+        gap: 4px; padding: 0 20px;
+        position: relative;
+      }
+      .tool-btn {
+        height: 64px; min-width: 84px;
+        display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+        padding: 8px 14px; background: transparent; color: var(--ink);
+        border: 0; border-bottom: 3px solid transparent;
+        cursor: pointer; font-size: 12px; font-weight: 600;
+        transition: background 0.12s;
+      }
+      .tool-btn:hover { background: #f9fafb; }
+      .tool-btn.active { color: var(--accent); border-bottom-color: var(--accent); background: #f9fafb; }
+      .tool-btn svg { width: 22px; height: 22px; }
+
+      /* ─── TOOL SHEET (slides up from above the bottom bar) ──────────── */
+      .sheet-backdrop {
+        position: absolute; inset: 0;
+        background: transparent;
+        display: none; z-index: 30;
+      }
+      .sheet-backdrop.show { display: block; }
+
+      .sheet {
+        position: absolute; bottom: 80px; left: 0; right: 0;
+        background: white; border-top: 1px solid var(--line);
+        box-shadow: 0 -10px 28px rgba(15,23,42,0.10);
+        max-height: 50vh; overflow-y: auto;
+        padding: 18px 24px;
+        z-index: 31;
+        transform: translateY(20px); opacity: 0; pointer-events: none;
+        transition: transform 0.18s, opacity 0.18s;
+      }
+      .sheet.show { transform: translateY(0); opacity: 1; pointer-events: auto; }
+
+      .sheet h2 { margin: 0 0 12px; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+      .sheet h3 { margin: 0 0 8px; font-size: 12px; font-weight: 700; color: var(--ink); }
+      .sheet .close { position: absolute; top: 12px; right: 16px; width: 30px; height: 30px; }
+
+      /* Re-use these classes inside the sheet */
+      .templates { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+      .template-card { aspect-ratio: 4/3; border-radius: 8px; cursor: pointer; transition: transform 0.12s, box-shadow 0.12s; overflow: hidden; position: relative; border: 2px solid transparent; background: #f3f4f6; }
+      .template-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(15,23,42,0.1); border-color: var(--accent); }
+      .uploads { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; }
+      .upload-tile { aspect-ratio: 1; border: 2px dashed #cbd5e1; border-radius: 8px; display: grid; place-items: center; cursor: pointer; color: var(--muted); font-size: 11px; text-align: center; padding: 8px; }
+      .upload-tile:hover { background: #f9fafb; border-color: var(--accent); }
+      .upload-tile img { max-width: 100%; max-height: 100%; object-fit: contain; }
+      .colors { display: grid; grid-template-columns: repeat(12, 1fr); gap: 6px; max-width: 600px; }
+      .colors button { aspect-ratio: 1; border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
       .colors button:hover { transform: scale(1.1); }
 
-      .uploads { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-      .upload-tile { aspect-ratio: 1; border: 2px dashed #cbd5e1; border-radius: 8px; display: grid; place-items: center; cursor: pointer; color: var(--muted); font-size: 11px; text-align: center; padding: 8px; }
-      .upload-tile:hover { background: #f1f5f9; border-color: var(--accent); }
-      .upload-tile img { max-width: 100%; max-height: 100%; object-fit: contain; }
+      .empty-state { padding: 24px; text-align: center; color: var(--muted); font-size: 13px; }
 
-      #toast { position: fixed; bottom: 24px; left: 50%; transform: translate(-50%, 20px); background: var(--bg); color: white; padding: 12px 20px; border-radius: 10px; font-size: 13px; font-weight: 600; opacity: 0; transition: all 0.2s; pointer-events: none; box-shadow: 0 10px 25px rgba(0,0,0,0.25); z-index: 100; }
+      /* ─── FLOATING LAYER PROPERTIES (small, top-right of stage) ─────── */
+      .layer-floating {
+        position: absolute; top: 96px; right: 24px; width: 240px;
+        background: white; border: 1px solid var(--line); border-radius: 12px;
+        padding: 14px; box-shadow: 0 8px 24px rgba(15,23,42,0.08);
+        display: none;
+      }
+      .layer-floating.show { display: block; }
+      .layer-floating h3 { margin: 0 0 8px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+      .layer-floating .field { display: grid; gap: 4px; margin-bottom: 8px; }
+      .layer-floating .field label { font-size: 11px; font-weight: 600; color: var(--ink); }
+      .layer-floating .field input, .layer-floating .field select {
+        padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; font: inherit; background: white; font-size: 12px;
+      }
+      .layer-floating .row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+      .layer-floating .delete-row { display: flex; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+      .layer-floating .delete-row button { flex: 1; }
+
+      /* ─── TOAST ──────────────────────────────────────────────────────── */
+      #toast { position: fixed; bottom: 100px; left: 50%; transform: translate(-50%, 20px); background: var(--ink); color: white; padding: 12px 20px; border-radius: 10px; font-size: 13px; font-weight: 600; opacity: 0; transition: all 0.2s; pointer-events: none; box-shadow: 0 10px 25px rgba(0,0,0,0.25); z-index: 100; }
       #toast.show { opacity: 1; transform: translate(-50%, 0); }
       #toast.success { background: #16a34a; }
       #toast.error { background: var(--danger); }
 
-      .empty-state { padding: 16px; text-align: center; color: var(--muted); font-size: 12px; font-style: italic; }
-
-      /* Modal for the proof PDF */
+      /* ─── PROOF MODAL (unchanged structure, lightly restyled) ───────── */
       .modal-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,0.78); display: none; align-items: center; justify-content: center; padding: 24px; z-index: 200; }
       .modal-backdrop.show { display: flex; }
-      .modal { background: white; border-radius: 16px; max-width: 1100px; width: 100%; max-height: 95vh; display: grid; grid-template-rows: auto 1fr auto; overflow: hidden; }
-      .modal-header { padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; }
+      .modal { background: white; border-radius: 16px; max-width: 1100px; width: 100%; max-height: 95vh; display: grid; grid-template-rows: auto auto 1fr auto; overflow: hidden; }
+      .modal-header { padding: 16px 20px; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; }
       .modal-header h2 { margin: 0; font-size: 18px; }
-      .modal-body { display: grid; grid-template-columns: 1fr 1fr; gap: 0; min-height: 60vh; background: #f1f5f9; overflow: hidden; }
+      .modal-body { display: grid; grid-template-columns: 1fr 1fr; gap: 0; min-height: 60vh; background: #f3f4f6; overflow: hidden; }
       .modal-body iframe, .modal-body canvas { width: 100%; height: 100%; border: 0; }
       .modal-pane { padding: 12px; display: grid; place-items: center; background: white; }
       .modal-pane h3 { margin: 0 0 8px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); align-self: start; }
       .modal-pane > div { width: 100%; height: 100%; display: grid; grid-template-rows: auto 1fr; }
-      .modal-pane > div > .pane-content { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
-      .modal-footer { padding: 16px 20px; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 8px; }
+      .modal-pane > div > .pane-content { background: #f9fafb; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+      .modal-footer { padding: 16px 20px; border-top: 1px solid var(--line); display: flex; justify-content: flex-end; gap: 8px; }
       .check-list { padding: 16px 20px; background: #f0fdf4; border-bottom: 1px solid #d1fae5; font-size: 13px; color: #065f46; }
       .check-list ul { margin: 4px 0 0; padding: 0 0 0 20px; }
       .check-list .ok { color: #16a34a; font-weight: 700; }
@@ -113,128 +242,120 @@
   </head>
   <body>
     <div class="shell">
-      <!-- Top bar -->
+      <!-- ─── TOP BAR ────────────────────────────────────────────────── -->
       <header class="topbar">
-        <div class="brand">
-          <img src="/logo.svg" alt="CloudLab" style="height: 26px; width: auto; filter: brightness(0) invert(1);" />
-          <span style="margin-left: 8px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; font-size: 11px; opacity: 0.7;">Designer</span>
-          <span style="opacity: 0.6; font-weight: 400; margin-left: 12px;" id="product-name-top">Loading…</span>
+        <div class="left">
+          <a class="brand" href="/" style="text-decoration: none; color: inherit;">
+            <img src="/logo.svg" alt="CloudLab" />
+            <span class="brand-name">CloudLab</span>
+          </a>
+          <span class="product-name" id="product-name-top">Loading…</span>
         </div>
-        <div class="actions">
-          <button class="btn btn-ghost" id="undo" title="Undo (Ctrl+Z)">↶ Undo</button>
-          <button class="btn btn-ghost" id="redo" title="Redo (Ctrl+Y)">↷ Redo</button>
-          <span style="opacity: 0.5; font-size: 11px; margin: 0 6px;" id="autosave-indicator">All changes saved</span>
+        <div class="center">
+          <button class="icon-btn" id="undo" title="Undo (Ctrl+Z)" aria-label="Undo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-7 3.3L3 13"/></svg>
+          </button>
+          <button class="icon-btn" id="redo" title="Redo (Ctrl+Y)" aria-label="Redo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 7 3.3L21 13"/></svg>
+          </button>
+        </div>
+        <div class="right">
+          <span class="save-status saved" id="autosave-indicator">All changes saved</span>
+          <button class="btn btn-secondary" id="save-draft">Save</button>
+          <button class="btn btn-primary" id="approve">
+            Approve & continue
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+          </button>
         </div>
       </header>
 
-      <!-- Tool icon sidebar -->
-      <nav class="sidebar">
-        <button class="active" data-panel="templates" title="Templates">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-          <span>Templates</span>
-        </button>
-        <button data-panel="text" title="Text">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 4h14M12 4v16"/></svg>
-          <span>Text</span>
-        </button>
-        <button data-panel="uploads" title="Uploads">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
-          <span>Uploads</span>
-        </button>
-        <button data-panel="shapes" title="Shapes">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="4"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg>
-          <span>Shapes</span>
-        </button>
-        <button data-panel="colors" title="Colors">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/></svg>
-          <span>Colors</span>
-        </button>
-        <button data-panel="qr" title="QR code">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h2v2h-2zM18 14h3v3h-3zM14 18h2v3h-2zM18 21h3M21 18v3"/></svg>
-          <span>QR code</span>
-        </button>
-      </nav>
-
-      <!-- Left panel: tool content (top) + selected-layer properties (bottom) -->
-      <aside class="left-panel">
-        <div class="tool-content" id="tool-panel"></div>
-        <div class="layer-content">
-          <h2 class="section-title">Selected layer</h2>
-          <div id="layer-props">
-            <div class="empty-state">Click any element on the canvas to edit it.</div>
-          </div>
+      <!-- ─── CONTEXTUAL FORMAT TOOLBAR (text selection only) ───────── -->
+      <div class="format-toolbar" id="format-toolbar">
+        <div class="seg-group">
+          <select class="font-select" id="fmt-font" title="Font family"></select>
         </div>
-      </aside>
+        <div class="seg-group">
+          <input class="size-input" id="fmt-size" type="number" min="6" max="240" step="1" title="Font size" />
+        </div>
+        <div class="seg-group">
+          <label class="swatch-btn" title="Text colour"><input id="fmt-color" type="color" value="#0f1a30" /></label>
+        </div>
+        <div class="seg-group">
+          <button class="seg-btn" id="fmt-bold" title="Bold (Ctrl+B)"><b>B</b></button>
+          <button class="seg-btn" id="fmt-italic" title="Italic (Ctrl+I)"><i>I</i></button>
+        </div>
+        <div class="seg-group">
+          <button class="seg-btn" id="fmt-align-left" title="Align left"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h10M4 18h14"/></svg></button>
+          <button class="seg-btn" id="fmt-align-center" title="Align center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M7 12h10M5 18h14"/></svg></button>
+          <button class="seg-btn" id="fmt-align-right" title="Align right"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M10 12h10M6 18h14"/></svg></button>
+        </div>
+        <div class="seg-group">
+          <button class="seg-btn" id="fmt-delete" title="Delete (Del)" style="color: var(--danger);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M5 6l1 14a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-14"/></svg></button>
+        </div>
+        <span class="meta" id="fmt-meta">text · 0 chars</span>
+      </div>
 
-      <!-- Stage -->
+      <!-- ─── STAGE ──────────────────────────────────────────────────── -->
       <main class="stage-wrap" id="stage">
         <div class="stage-info">
-          <span><strong id="page-size-label">85 × 55 mm</strong> · <span id="paper-label">350 gsm Premium</span></span>
+          <span><strong id="page-size-label">85 × 55 mm</strong></span>
           <span class="legend">
-            <span class="swatch" style="background: #ef4444"></span> Bleed
-            <span class="swatch" style="background: #10b981"></span> Safe area
+            <span class="swatch" style="background: var(--danger)"></span> Bleed
+            <span class="swatch" style="background: var(--safe)"></span> Safe area
           </span>
         </div>
         <div class="canvas-frame">
           <canvas id="canvas" width="600" height="400"></canvas>
         </div>
+
+        <!-- Layer properties — only visible when a non-text object is selected -->
+        <div class="layer-floating" id="layer-props">
+          <h3>Selected layer</h3>
+          <div id="layer-props-body"></div>
+        </div>
       </main>
 
-      <!-- Right panel: product / order info + actions -->
-      <aside class="right">
-        <div class="order-card">
-          <div class="product-name" id="product-name">Standard Business Card</div>
-          <div class="product-meta" id="product-meta">85 × 55 mm · 350 gsm Premium Silk</div>
-        </div>
+      <!-- ─── BOTTOM ACTION BAR ─────────────────────────────────────── -->
+      <nav class="bottombar">
+        <button class="tool-btn" data-panel="templates">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          <span>Templates</span>
+        </button>
+        <button class="tool-btn" data-panel="text">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 4h14M12 4v16"/></svg>
+          <span>Text</span>
+        </button>
+        <button class="tool-btn" data-panel="uploads">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+          <span>Upload</span>
+        </button>
+        <button class="tool-btn" data-panel="shapes">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="4"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg>
+          <span>Shapes</span>
+        </button>
+        <button class="tool-btn" data-panel="colors">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/></svg>
+          <span>Colors</span>
+        </button>
+        <button class="tool-btn" data-panel="qr">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h2v2h-2zM18 14h3v3h-3zM14 18h2v3h-2zM18 21h3M21 18v3"/></svg>
+          <span>QR code</span>
+        </button>
 
-        <div>
-          <h2 class="section-title">Order</h2>
-          <div class="row">
-            <div class="field">
-              <label>Quantity</label>
-              <select id="order-qty">
-                <option>100</option><option>250</option><option>500</option><option>1 000</option><option>2 500</option>
-              </select>
-            </div>
-            <div class="field">
-              <label>Sides</label>
-              <select id="order-sides">
-                <option>Double</option><option>Single</option>
-              </select>
-            </div>
-          </div>
-          <div class="field">
-            <label>Finish</label>
-            <select id="order-finish">
-              <option>No finish</option>
-              <option>Matt lamination</option>
-              <option>Gloss lamination</option>
-            </select>
-          </div>
+        <!-- Slide-up sheet for whichever tool is active -->
+        <div class="sheet-backdrop" id="sheet-backdrop"></div>
+        <div class="sheet" id="tool-sheet">
+          <button class="icon-btn close" id="sheet-close" aria-label="Close" title="Close">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
+          <div id="tool-panel"></div>
         </div>
-
-        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px;">
-          <div style="display: flex; justify-content: space-between; align-items: baseline;">
-            <span style="font-size: 12px; color: var(--muted);">Total (incl. VAT)</span>
-            <span style="font-size: 24px; font-weight: 800;" id="order-total">€18.00</span>
-          </div>
-          <div style="font-size: 11px; color: var(--muted); margin-top: 2px;" id="order-unit">€0.18 per piece · 19% VAT</div>
-        </div>
-
-        <div style="display: grid; gap: 8px;">
-          <button class="btn btn-secondary" id="save-draft" style="justify-content: center;">💾 Save draft</button>
-          <button class="btn btn-primary" id="approve" style="justify-content: center; padding: 12px;">✓ Approve & continue</button>
-        </div>
-
-        <div style="font-size: 11px; color: var(--muted); text-align: center;">
-          Auto-saves as you edit · 24h production · Free EU delivery from €99
-        </div>
-      </aside>
+      </nav>
     </div>
 
     <div id="toast"></div>
 
-    <!-- Proof PDF preview modal -->
+    <!-- Proof PDF preview modal (unchanged) -->
     <div class="modal-backdrop" id="proof-modal">
       <div class="modal">
         <div class="modal-header">
