@@ -81,15 +81,21 @@ async function fetchTemplates(productId: string | null): Promise<ApiTemplate[]> 
 }
 
 /**
- * Tiny inline preview of a template — we draw the same rect+text objects to a
- * miniature canvas using CSS. Good enough to tell the layouts apart without
- * loading a full Fabric instance per card.
+ * Inline preview of a template. If the scene contains photo objects (any
+ * Fabric `image` type referencing a /images/templates/… URL), we drop one
+ * in as the card's background — so image-hero and photo-grid cards look
+ * like real previews instead of solid colour blocks. Pure-typography
+ * layouts still show the bg colour + brand name overlay.
  */
 function templateCardHtml(tpl: ApiTemplate): string {
   const bg = tpl.template_json?.background ?? '#0f1a30';
-  // Estimate accent + heading from the first non-background colored objects.
   let accent = '#D4AF37', heading = '#FFFFFF', name = 'YOUR COMPANY';
+  let photoSrc: string | null = null;
+
   for (const o of tpl.template_json?.objects ?? []) {
+    if (o?.type === 'image' && typeof o?.src === 'string' && photoSrc === null) {
+      photoSrc = o.src;
+    }
     if (o?.name === 'accent-divider' || o?.name === 'accent-strip' || o?.name === 'accent-band' || o?.name === 'accent-corner') {
       accent = o.fill ?? accent;
     }
@@ -98,13 +104,19 @@ function templateCardHtml(tpl: ApiTemplate): string {
       name = (o.text ?? '').slice(0, 22);
     }
   }
+
+  const bgLayer = photoSrc
+    ? `<div style="position:absolute; inset:0; background:url('${photoSrc}') center/cover no-repeat;"></div>
+       <div style="position:absolute; inset:0; background:linear-gradient(to top, ${bg}ee 0%, ${bg}66 55%, transparent 100%);"></div>`
+    : `<div style="position:absolute; inset:0; background:${bg};"></div>`;
+
   return `
-    <div style="position:absolute; inset:0; padding:8px; display:flex; flex-direction:column; justify-content:flex-end; color:${heading};">
+    ${bgLayer}
+    <div style="position:absolute; inset:0; padding:8px; display:flex; flex-direction:column; justify-content:flex-end; color:${heading}; pointer-events:none;">
       <div style="height:3px; width:24px; background:${accent}; margin-bottom:5px; border-radius:2px;"></div>
-      <div style="font-weight:800; font-size:11px; line-height:1.1; opacity:0.95;">${name}</div>
-      <div style="font-size:9px; opacity:0.7; margin-top:1px;">${tpl.width_mm}×${tpl.height_mm} mm</div>
+      <div style="font-weight:800; font-size:11px; line-height:1.1; opacity:0.95; text-shadow:0 1px 2px rgba(0,0,0,0.4);">${name}</div>
+      <div style="font-size:9px; opacity:0.7; margin-top:1px; text-shadow:0 1px 1px rgba(0,0,0,0.4);">${tpl.width_mm}×${tpl.height_mm} mm</div>
     </div>
-    <div style="position:absolute; inset:0; background:${bg}; z-index:-1;"></div>
   `;
 }
 
