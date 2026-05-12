@@ -1,7 +1,22 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api, type ConfiguratorPayload, type PriceResult, type ValidationResult } from '~/lib/api';
 
-const DESIGNER_BASE = import.meta.env.PUBLIC_DESIGNER_URL ?? 'http://localhost:5173';
+/**
+ * Where to send the user when they click "Launch designer".
+ *
+ * The aggregator nginx mounts the designer at `/designer/` on the same
+ * origin as the storefront, so we prefer same-origin both for CORS
+ * cleanliness and to keep the user inside the ngrok preview URL when
+ * they hop from product page to editor and back. The build-time env var
+ * is the fallback for standalone deploys.
+ */
+function resolveDesignerBase(): string {
+  if (typeof window !== 'undefined') {
+    return `${window.location.origin}/designer`;
+  }
+  return import.meta.env.PUBLIC_DESIGNER_URL ?? 'http://localhost:5173';
+}
+const DESIGNER_BASE = resolveDesignerBase();
 
 type Props = { slug: string };
 

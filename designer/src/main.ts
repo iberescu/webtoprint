@@ -14,8 +14,35 @@ const designIdFromUrl = params.get('design');
 // resolve to both forms so save can use the UUID and the redirect can use
 // the slug.
 const productFromUrl = params.get('product') ?? '';
-const apiBase = (import.meta as any).env?.VITE_API_URL ?? 'http://localhost:8000/api/v1';
-const storefrontUrl = (import.meta as any).env?.VITE_STOREFRONT_URL ?? 'http://localhost:4321';
+
+/**
+ * Resolve where the designer should talk to the backend.
+ *
+ * When this page is served behind the aggregator nginx (path begins with
+ * `/designer/`) the same host already proxies `/api/v1/*` to the print
+ * backend — using same-origin URLs avoids CORS entirely and makes the
+ * designer work identically on localhost, the ngrok preview, or any
+ * other deploy.
+ *
+ * Only when the designer is loaded standalone (e.g. opened directly on
+ * the Vite dev server at :5173 with no aggregator in front) do we fall
+ * back to VITE_API_URL or the hardcoded localhost backend.
+ */
+function resolveApiBase(): string {
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/designer/')) {
+    return `${window.location.origin}/api/v1`;
+  }
+  return (import.meta as any).env?.VITE_API_URL ?? 'http://localhost:8000/api/v1';
+}
+function resolveStorefrontUrl(): string {
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/designer/')) {
+    return window.location.origin;
+  }
+  return (import.meta as any).env?.VITE_STOREFRONT_URL ?? 'http://localhost:4321';
+}
+
+const apiBase = resolveApiBase();
+const storefrontUrl = resolveStorefrontUrl();
 const client = new DesignerClient(apiBase);
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

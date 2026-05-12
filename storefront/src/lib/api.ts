@@ -8,8 +8,29 @@
  *
  * Endpoints map 1:1 to the spec §14 REST shape.
  */
-const PRINT_BASE = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8000/api/v1';
-const SHOP_BASE = import.meta.env.PUBLIC_SHOP_API_URL ?? 'http://localhost:8001/api/v1';
+/**
+ * Resolve API hosts.
+ *
+ * When the storefront is served by the aggregator nginx (the only public
+ * surface in dev / ngrok / prod), `/api/v1/*` and `/shop/api/v1/*` are
+ * routed back to their respective Laravel apps on the SAME origin. Using
+ * same-origin URLs from the browser sidesteps CORS entirely and means the
+ * storefront works identically on localhost, an ngrok URL, or any future
+ * production hostname — without rebuilding when the host changes.
+ *
+ * The build-time `PUBLIC_API_URL` / `PUBLIC_SHOP_API_URL` env vars are
+ * still honoured when the page is loaded server-side (Astro SSR — no
+ * `window`), and as a fallback for any deploy that doesn't share an
+ * origin with its API.
+ */
+function resolveBase(envValue: string | undefined, suffix: string, fallback: string): string {
+  if (typeof window !== 'undefined') {
+    return `${window.location.origin}${suffix}`;
+  }
+  return envValue ?? fallback;
+}
+const PRINT_BASE = resolveBase(import.meta.env.PUBLIC_API_URL,       '/api/v1',       'http://localhost:8000/api/v1');
+const SHOP_BASE  = resolveBase(import.meta.env.PUBLIC_SHOP_API_URL,  '/shop/api/v1',  'http://localhost:8001/api/v1');
 
 export class ApiError extends Error {
   constructor(public status: number, public payload: unknown, message: string) {

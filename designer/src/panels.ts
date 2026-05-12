@@ -28,7 +28,18 @@ type ApiTemplate = {
   template_json: any;
 };
 
-const apiBase = (import.meta as any).env?.VITE_API_URL ?? 'http://localhost:8000/api/v1';
+/**
+ * Same resolver as main.ts: prefer same-origin when behind the aggregator
+ * (path `/designer/…`) so the templates fetch never hits a foreign host
+ * and never triggers a CORS preflight. See main.ts for the rationale.
+ */
+function resolveApiBase(): string {
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/designer/')) {
+    return `${window.location.origin}/api/v1`;
+  }
+  return (import.meta as any).env?.VITE_API_URL ?? 'http://localhost:8000/api/v1';
+}
+const apiBase = resolveApiBase();
 
 const SWATCHES = [
   '#0f172a', '#1e293b', '#475569', '#94a3b8', '#cbd5e1', '#e2e8f0', '#f1f5f9', '#ffffff',
